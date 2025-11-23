@@ -427,12 +427,13 @@ if SERVER then
 		if ulx and (ent.frozen or ent.jail) then return end
 		--the grab imposes MOVETYPE_NONE and no collisions
 		--reverting the state requires to reset the eyeang roll in case it was modified
+		local phys = ent:GetPhysicsObject()
 		if ent:IsPlayer() then
 			if bool then --apply lock
 				active_grabbed_ents[ent] = true
 				if nocollide then
 					ent:SetMoveType(MOVETYPE_NONE)
-					ent:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+					ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS_TRIGGER)
 				else
 					ent:SetMoveType(MOVETYPE_WALK)
 					ent:SetCollisionGroup(COLLISION_GROUP_NONE)
@@ -461,7 +462,7 @@ if SERVER then
 				active_grabbed_ents[ent] = true
 				if nocollide then
 					ent:SetMoveType(MOVETYPE_NONE)
-					ent:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+					ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS_TRIGGER)
 				else
 					ent:SetMoveType(MOVETYPE_STEP)
 					ent:SetCollisionGroup(COLLISION_GROUP_NONE)
@@ -474,6 +475,20 @@ if SERVER then
 				ent_ang.r = 0
 				ent:SetAngles(ent_ang)
 			end
+		else
+			if IsValid(phys) then
+				phys:EnableGravity(false)
+				if bool then
+					if nocollide then
+						ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS_TRIGGER)
+					else
+						ent:SetCollisionGroup(COLLISION_GROUP_NONE)
+					end
+				else
+					ent:SetCollisionGroup(COLLISION_GROUP_NONE)
+				end
+			end
+			if bool then return end
 		end
 
 		if bool == nil then
@@ -490,6 +505,9 @@ if SERVER then
 		ent:PhysWake()
 		ent:SetGravity(1)
 
+		if IsValid(phys) then
+			phys:EnableGravity(true)
+		end
 	end
 
 	local function maximized_ray_mins_maxs(startpos,endpos,padding)
@@ -2135,6 +2153,7 @@ if SERVER then
 		util.AddNetworkString("pac_lock_imposecalcview")
 		util.AddNetworkString("pac_signal_stop_lock")
 		util.AddNetworkString("pac_request_lock_break")
+		util.AddNetworkString("pac_request_lock_toss")
 		util.AddNetworkString("pac_mark_grabbed_ent")
 		util.AddNetworkString("pac_notify_grabbed_player")
 		--The lock part grab request net message
@@ -2402,6 +2421,19 @@ if SERVER then
 			targ_ent:SetAngles(ang)
 			ApplyLockState(targ_ent, false)
 
+		end)
+
+		net.Receive("pac_request_lock_toss", function(len, ply)
+			local ent = net.ReadEntity()
+			local vec = net.ReadVector()
+			local phys_ent = ent:GetPhysicsObject()
+			if Is_NPC(ent) then
+				phys_ent = ent
+			end
+			if ent:IsPlayer() then
+				phys_ent:SetVelocity(-phys_ent:GetVelocity())
+			end
+			phys_ent:SetVelocity(vec)
 		end)
 
 
