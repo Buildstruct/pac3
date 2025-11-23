@@ -116,6 +116,7 @@ do --dev util
 
 			if istable(ent.pac_animation_sequences) then
 				for part in next, ent.pac_animation_sequences do
+					if isnumber(part) then continue end
 					if part:IsValid() then
 						_part = part
 						ProtectedCall(nuke_part)
@@ -127,6 +128,7 @@ do --dev util
 
 			if istable(ent.pac_bone_parts) then
 				for part in next, ent.pac_bone_parts do
+					if isnumber(part) then continue end
 					if part:IsValid() then
 						_part = part
 						ProtectedCall(nuke_part)
