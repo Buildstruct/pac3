@@ -414,7 +414,7 @@ function PART:OnShow()
 			render.DrawWireframeSphere(origin_part:GetWorldPosition() + Vector(0,0,-self.OffsetDownAmount), self.Radius, 30, 30, Color(100,100,100),true)
 		end
 
-		if self.ThrowMode ~= "" then
+		if self.ThrowMode ~= "None" then
 			local vec_ang, vec = self:GetThrowAngle()
 			render.DrawLine(self:GetWorldPosition(),self:GetWorldPosition() + vec,Color(255,255,255))
 		end
