@@ -2431,7 +2431,8 @@ if SERVER then
 				phys_ent = ent
 			end
 			if ent:IsPlayer() then
-				phys_ent:SetVelocity(-phys_ent:GetVelocity())
+				ent:SetVelocity(-ent:GetVelocity() + vec)
+				return
 			end
 			phys_ent:SetVelocity(vec)
 		end)
