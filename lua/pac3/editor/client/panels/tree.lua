@@ -310,6 +310,7 @@ do
 			v.dormant_node = false
 			v.focused = false
 			if not children[v] then
+				if v.fake_root_parent then continue end
 				parts[v] = v
 			end
 		end
@@ -337,6 +338,9 @@ do
 			part.fake_root = false
 			part.no_populate_because_of_fakenode = nil
 			if IsValid(node) then node:Remove() end
+			for i,v in pairs(part:GetChildrenList()) do
+				v.fake_root_parent = false
+			end
 			pace.RefreshTree(true)
 			return
 		end
@@ -349,6 +353,9 @@ do
 		part.fake_root = true
 		if IsValid(node) then
 			node:Remove()
+		end
+		for i,v in pairs(part:GetChildrenList()) do
+			v.fake_root_parent = true
 		end
 		
 		pace.RefreshTree(true)
@@ -677,9 +684,9 @@ end
 
 function PANEL:PopulateParts(node, parts, children, dormant)
 	self.populated = true
-	if node.part and node.part.no_populate and not node.part.no_populate_because_of_fakenode then node:Remove() return end
+	if node.part and node.part.no_populate and not node.part.no_populate_because_of_fakenode and not node.part.fake_root_parent then node:Remove() return end
 	if pace.fake_root_nodes then
-		if pace.fake_root_nodes[node.part] and node ~= node.part.fake_root_node then return end
+		if pace.fake_root_nodes[node.part] and node ~= node.part.fake_root_node and not node.part.fake_root_parent then return end
 	end
 	fix_folder_funcs(node)
 
