@@ -5,6 +5,7 @@ local favorites_menu_expansion = CreateClientConVar("pac_favorites_try_to_build_
 local extra_dynamic = CreateClientConVar("pac_special_property_update_dynamically", "1", true, false, "Whether proxies should refresh the properties, and some booleans may show more information.")
 local special_property_text_color = CreateClientConVar("pac_special_property_text_color", "160 0 80", true, false, "R G B color of special property text\npac_special_property_text_color \"\" will make it not change the color\nSpecial contexts like proxies and hidden parts can show a different color to show that changes are happening in real time.")
 local prettify_names = CreateClientConVar("pac_property_reformating", "2", true, false, "How much to reformat the names of properties.\n2 will run the full editor friendly conversion.\n1 will run the editor friendly conversion on most cases except faceposer where an option exists to show the raw flex names\n0 will show the raw keys for everything")
+local faceposer_regroup = CreateClientConVar("pac_faceposer_property_regrouping", "1", true, false, "Whether to regroup flexes by category as brows, eyes, look and mouth flexes")
 
 local pins = CreateClientConVar("pac_editor_pins", 0, true)
 cvars.AddChangeCallback("pac_editor_pins", function(cvar, old, new)
@@ -1380,129 +1381,20 @@ do -- list
 		end
 		pace.properties.line_heights = 0
 		if class == "faceposer" then
-			local facepose_categories = {}
-			local mouth = {}
-			local eyes = {}
-			local look = {}
-			local brow = {}
-			local other = {}
-
-			local known_outliers_mouth = {
-				["A"] = true,
-				["Ah"] = true,
-				["Oh"] = true,
-				["O"] = true,
-				["E"] = true,
-				["Ch"] = true,
-				["U"] = true,
-			}
-			local known_outliers_brows = {
-				["Anger"] = true,
-				["Sadness"] = true,
-				["Cheer"] = true,
-				["Cheerful"] = true,
-				["Upper"] = true,
-				["Lower"] = true,
-			}
-			local known_outliers_look = {
-				["Eyes Down"] = true,
-				["Eyes Up"] = true,
-				["Eyes Left"] = true,
-				["Eyes Right"] = true,
-				["Eye Down"] = true,
-				["Eye Up"] = true,
-				["Eye Left"] = true,
-				["Eye Right"] = true,
-			}
-
-			local valve_m = {
-				["right_upper_raiser"] = true,
-				["left_upper_raiser"] = true,
-				["right_corner_puller"] = true,
-				["left_corner_puller"] = true,
-				["right_corner_depressor"] = true,
-				["left_corner_depressor"] = true,
-				["chin_raiser"] = true,
-				["smile"] = true,
-				["lower_lip"] = true,
-
-				["right_part"] = true,
-				["left_part"] = true,
-				["right_puckerer"] = true,
-				["left_puckerer"] = true,
-				["right_funneler"] = true,
-				["left_funneler"] = true,
-				["right_stretcher"] = true,
-				["left_stretcher"] = true,
-				["bite"] = true,
-				["presser"] = true,
-				["tightener"] = true,
-				["jaw_clencher"] = true,
-				["jaw_drop"] = true,
-				["right_mouth_drop"] = true,
-				["left_mouth_drop"] = true,
-			}
-
-			local valve_e = {
-				["right_lid_raiser"] = true,
-				["left_lid_raiser"] = true,
-				["left_lid_tightener"] = true,
-				["right_lid_tightener"] = true,
-				["left_lid_droop"] = true,
-				["right_lid_droop"] = true,
-				["left_lid_closer"] = true,
-				["right_lid_closer"] = true,
-				["half_closed"] = true,
-				["blink"] = true,
-			}
-
-			local valve_b = {
-				["right_inner_raiser"] = true,
-				["left_inner_raiser"] = true,
-				["right_outer_raiser"] = true,
-				["left_outer_raiser"] = true,
-				["right_lowerer"] = true,
-				["left_lowerer"] = true,
-			}
-
-			for i, data in ipairs(flat_list) do
-				local name = data.key
-				local sub_name = string.lower(name)
-				if data.udata.group == "flexes" then
-					--mouth
-					if valve_m[sub_name] or known_outliers_mouth[name] or string.find(sub_name, "mouth") or string.find(name, "Mouth") then
-						table.insert(mouth, data)
-					--brows
-					elseif valve_b[sub_name] or known_outliers_brows[name] or string.find(sub_name, "brow") or string.find(name, "Brow") then
-						table.insert(brow, data)
-					--eye look
-					elseif known_outliers_look[sub_name] or string.find(sub_name, "look") or string.find(name, "Look") then
-						table.insert(look, data)
-					--eyes
-					elseif valve_e[sub_name] or string.find(sub_name, "eye") or string.find(name, "Eye") or string.find(sub_name, "blink") or string.find(sub_name, "lid") then
-						table.insert(eyes, data)
-					--other
-					else
-						table.insert(other, data)
+			local grouping = false
+			if faceposer_regroup:GetInt() == 1 then
+				local ent = pace.current_part:GetOwner()
+				if IsValid(ent) then
+					--assume valvebiped head is an indicator of facial flexes
+					if ent:LookupBone("ValveBiped.Bip01_Head1") then
+						grouping = true
 					end
 				end
-			end
-			if not table.IsEmpty(mouth) then
-				facepose_categories.mouth = mouth
-			end
-			if not table.IsEmpty(eyes) then
-				facepose_categories.eyes = eyes
-			end
-			if not table.IsEmpty(look) then
-				facepose_categories.look = look
-			end
-			if not table.IsEmpty(brow) then
-				facepose_categories.brow = brow
-			end
-			if not table.IsEmpty(other) then
-				facepose_categories.other = other
+			elseif faceposer_regroup:GetInt() == 2 then
+				grouping = true
 			end
 
+			--first pass : normal properties
 			for _, data in ipairs(SortGroups(FlatListToGroups(flat_list))) do
 				if data.group == "flexes" then continue end
 				self:AddCollapser("generic")
@@ -1517,14 +1409,152 @@ do -- list
 
 				end
 			end
-			for name, props in SortedPairs(facepose_categories) do
-				local temp = {}
-				for i, prop in ipairs(props) do
-					temp[prop.key] = prop
+
+			if grouping then
+				local facepose_categories = {}
+				local mouth = {}
+				local eyes = {}
+				local look = {}
+				local brow = {}
+				local other = {}
+
+				local known_outliers_mouth = {
+					["A"] = true,
+					["Ah"] = true,
+					["Oh"] = true,
+					["O"] = true,
+					["E"] = true,
+					["Ch"] = true,
+					["U"] = true,
+				}
+				local known_outliers_brows = {
+					["Anger"] = true,
+					["Sadness"] = true,
+					["Cheer"] = true,
+					["Cheerful"] = true,
+					["Upper"] = true,
+					["Lower"] = true,
+				}
+				local known_outliers_look = {
+					["Eyes Down"] = true,
+					["Eyes Up"] = true,
+					["Eyes Left"] = true,
+					["Eyes Right"] = true,
+					["Eye Down"] = true,
+					["Eye Up"] = true,
+					["Eye Left"] = true,
+					["Eye Right"] = true,
+				}
+
+				local valve_m = {
+					["right_upper_raiser"] = true,
+					["left_upper_raiser"] = true,
+					["right_corner_puller"] = true,
+					["left_corner_puller"] = true,
+					["right_corner_depressor"] = true,
+					["left_corner_depressor"] = true,
+					["chin_raiser"] = true,
+					["smile"] = true,
+					["lower_lip"] = true,
+
+					["right_part"] = true,
+					["left_part"] = true,
+					["right_puckerer"] = true,
+					["left_puckerer"] = true,
+					["right_funneler"] = true,
+					["left_funneler"] = true,
+					["right_stretcher"] = true,
+					["left_stretcher"] = true,
+					["bite"] = true,
+					["presser"] = true,
+					["tightener"] = true,
+					["jaw_clencher"] = true,
+					["jaw_drop"] = true,
+					["right_mouth_drop"] = true,
+					["left_mouth_drop"] = true,
+				}
+
+				local valve_e = {
+					["right_lid_raiser"] = true,
+					["left_lid_raiser"] = true,
+					["left_lid_tightener"] = true,
+					["right_lid_tightener"] = true,
+					["left_lid_droop"] = true,
+					["right_lid_droop"] = true,
+					["left_lid_closer"] = true,
+					["right_lid_closer"] = true,
+					["half_closed"] = true,
+					["blink"] = true,
+				}
+
+				local valve_b = {
+					["right_inner_raiser"] = true,
+					["left_inner_raiser"] = true,
+					["right_outer_raiser"] = true,
+					["left_outer_raiser"] = true,
+					["right_lowerer"] = true,
+					["left_lowerer"] = true,
+				}
+
+				for i, data in ipairs(flat_list) do
+					local name = data.key
+					local sub_name = string.lower(name)
+					if data.udata.group == "flexes" then
+						--mouth
+						if valve_m[sub_name] or known_outliers_mouth[name] or string.find(sub_name, "mouth") or string.find(name, "Mouth") then
+							table.insert(mouth, data)
+						--brows
+						elseif valve_b[sub_name] or known_outliers_brows[name] or string.find(sub_name, "brow") or string.find(name, "Brow") then
+							table.insert(brow, data)
+						--eye look
+						elseif known_outliers_look[sub_name] or string.find(sub_name, "look") or string.find(name, "Look") then
+							table.insert(look, data)
+						--eyes
+						elseif valve_e[sub_name] or string.find(sub_name, "eye") or string.find(name, "Eye") or string.find(sub_name, "blink") or string.find(sub_name, "lid") then
+							table.insert(eyes, data)
+						--other
+						else
+							table.insert(other, data)
+						end
+					end
 				end
-				self:AddCollapser(name)
-				for key, prop in SortedPairs(temp) do
-					prop.udata.group = name
+				if not table.IsEmpty(mouth) then
+					facepose_categories.mouth = mouth
+				end
+				if not table.IsEmpty(eyes) then
+					facepose_categories.eyes = eyes
+				end
+				if not table.IsEmpty(look) then
+					facepose_categories.look = look
+				end
+				if not table.IsEmpty(brow) then
+					facepose_categories.brow = brow
+				end
+				if not table.IsEmpty(other) then
+					facepose_categories.other = other
+				end
+				--second pass : flexes
+				for name, props in SortedPairs(facepose_categories) do
+					local temp = {}
+					for i, prop in ipairs(props) do
+						temp[prop.key] = prop
+					end
+					self:AddCollapser(name)
+					for key, prop in SortedPairs(temp) do
+						prop.udata.group = name
+						if pins:GetBool() and pace.pinned_properties_keyed[prop.key] and not pace.CollapsedProperties["pinned"] then continue end
+
+						if prop.udata and prop.udata.hide_in_editor then
+							continue
+						end
+						populate(prop)
+					end
+				end
+			else
+				self:AddCollapser("flexes")
+				local flexes = pace.current_part:GetDynamicProperties()
+				--second pass : flexes (uncategorized)
+				for key, prop in SortedPairs(flexes) do
 					if pins:GetBool() and pace.pinned_properties_keyed[prop.key] and not pace.CollapsedProperties["pinned"] then continue end
 
 					if prop.udata and prop.udata.hide_in_editor then
@@ -1533,6 +1563,7 @@ do -- list
 					populate(prop)
 				end
 			end
+
 			return
 		end
 		for _, data in ipairs(SortGroups(FlatListToGroups(flat_list))) do
