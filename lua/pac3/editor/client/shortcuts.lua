@@ -72,6 +72,8 @@ pace.PACActionShortcut_Dictionary = {
 	"bulk_morph",
 	"criteria_process",
 	"toggle_pins",
+	"part_fake_root",
+	"part_focus",
 }
 
 pace.PACActionShortcut_Default = {
@@ -349,6 +351,11 @@ pace.shortcuts_ignored_keys = {
 	[KEY_SCROLLLOCKTOGGLE] = true
 }
 
+local function KeyDown(i)
+	if not isnumber(i) then i = input.GetKeyCode(i) end
+	return input.IsKeyDown(i) or input.IsMouseDown(i)
+end
+
 function pace.LookupShortcutsForAction(action, provided_inputs, do_it)
 	pace.BulkSelectKey = input.GetKeyCode(GetConVar("pac_bulk_select_key"):GetString())
 
@@ -360,7 +367,7 @@ function pace.LookupShortcutsForAction(action, provided_inputs, do_it)
 				return false
 			end]]
 
-			if not input.IsKeyDown(input.GetKeyCode(key)) then --all keys must be there
+			if not KeyDown(key) then --all keys must be there
 				return false
 			end
 		end
@@ -802,6 +809,12 @@ function pace.DoShortcutFunc(action)
 	if action == "toggle_pins" then
 		GetConVar("pac_editor_pins"):SetBool(not GetConVar("pac_editor_pins"):GetBool())
 	end
+
+	if action == "part_fake_root" then
+		pace.PartFakeRoot(pace.current_part)
+	elseif action == "part_focus" then
+		pace.PartFocus(pace.current_part)
+	end
 end
 
 pace.delaybulkselect = 0
@@ -921,7 +934,7 @@ function pace.CheckShortcuts()
 	local inputs_str = ""
 	pace.shortcut_inputs_count = 0
 	for i=1,172,1 do --build bool list of all current keys
-		if input.IsKeyDown(i) then
+		if KeyDown(i) then
 			if pace.shortcuts_ignored_keys[i] then continue end
 			if pace.passthrough_keys[i] or i == pace.BulkSelectKey then no_input_override = true end
 			input_active[i] = true
