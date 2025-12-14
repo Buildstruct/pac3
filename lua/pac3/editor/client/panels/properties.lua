@@ -5,7 +5,7 @@ local favorites_menu_expansion = CreateClientConVar("pac_favorites_try_to_build_
 local extra_dynamic = CreateClientConVar("pac_special_property_update_dynamically", "1", true, false, "Whether proxies should refresh the properties, and some booleans may show more information.")
 local special_property_text_color = CreateClientConVar("pac_special_property_text_color", "160 0 80", true, false, "R G B color of special property text\npac_special_property_text_color \"\" will make it not change the color\nSpecial contexts like proxies and hidden parts can show a different color to show that changes are happening in real time.")
 local prettify_names = CreateClientConVar("pac_property_reformating", "2", true, false, "How much to reformat the names of properties.\n2 will run the full editor friendly conversion.\n1 will run the editor friendly conversion on most cases except faceposer where an option exists to show the raw flex names\n0 will show the raw keys for everything")
-local faceposer_regroup = CreateClientConVar("pac_faceposer_property_regrouping", "1", true, false, "Whether to regroup flexes by category as brows, eyes, look and mouth flexes")
+local faceposer_regroup = CreateClientConVar("pac_faceposer_property_regrouping", "1", true, false, "Whether to regroup flexes by category as brows, eyes, look, mouth and other flexes.\n0 = never\n1 = if the owner has a head bone\n2 = always")
 
 local pins = CreateClientConVar("pac_editor_pins", 0, true)
 cvars.AddChangeCallback("pac_editor_pins", function(cvar, old, new)
