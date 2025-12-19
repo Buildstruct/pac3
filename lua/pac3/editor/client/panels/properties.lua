@@ -4,7 +4,7 @@ local languageID = CreateClientConVar("pac_editor_languageid", 1, true, false, "
 local favorites_menu_expansion = CreateClientConVar("pac_favorites_try_to_build_asset_series", "0", true, false)
 local extra_dynamic = CreateClientConVar("pac_special_property_update_dynamically", "1", true, false, "Whether proxies should refresh the properties, and some booleans may show more information.")
 local special_property_text_color = CreateClientConVar("pac_special_property_text_color", "160 0 80", true, false, "R G B color of special property text\npac_special_property_text_color \"\" will make it not change the color\nSpecial contexts like proxies and hidden parts can show a different color to show that changes are happening in real time.")
-local prettify_names = CreateClientConVar("pac_property_reformating", "2", true, false, "How much to reformat the names of properties.\n2 will run the full editor friendly conversion.\n1 will run the editor friendly conversion on most cases except faceposer where an option exists to show the raw flex names\n0 will show the raw keys for everything")
+local prettify_names = CreateClientConVar("pac_property_reformating", "2", true, false, "How much to reformat the names of properties.\n2 will run the full editor friendly conversion.\n1 will partially run the editor friendly conversion on most cases except faceposer where an option exists to show the raw flex names\n0 will show the raw keys for everything")
 local faceposer_regroup = CreateClientConVar("pac_faceposer_property_regrouping", "1", true, false, "Whether to regroup flexes by category as brows, eyes, look, mouth and other flexes.\n0 = never\n1 = if the owner has a head bone\n2 = always")
 
 local pins = CreateClientConVar("pac_editor_pins", 0, true)
@@ -573,6 +573,86 @@ local function populate_bookmarks(menu, mode, self)
 	end
 end
 
+local function populate_proxy_info(menu, self, key)
+	pace.bookmarked_ressources = pace.bookmarked_ressources or {}
+	pace.bookmarked_ressources["proxy"] = pace.bookmarked_ressources["proxy"]
+
+	local menu0, pnl0 = menu:AddSubMenu(L"Lua syntax rules", function()
+	end)
+	pnl0:SetIcon("icon16/application_xp_terminal.png")
+	menu0:AddOption("basic numbers supported"):SetTooltip("basic numbers can be whole e.g. 1\ndecimals e.g. 0.5 or .5")
+	menu0:AddOption("basic math operators"):SetTooltip("+  :  addition e.g. 2 + 2\n-  :  subtraction e.g. 4 - 2\n*  :  multiplication e.g. 0.3*10\n/  :  division e.g. 1/2\n^  :  exponentiation e.g. 2^3\n%  :  remainder\n(...)  :  parentheses e.g. 2*(0.5 + 1)")
+	menu0:AddOption("other Lua operators"):SetTooltip("This shouldn't matter, but it might come up.\n-- creates a code comment\n.. is concatenation for strings")
+	menu0:AddOption("order of operations"):SetTooltip("PEMDAS : parentheses, exponentiation, multiplication, division, addition, subtraction\n\nPlease use parentheses to force the order of operations you want")
+	menu0:AddSpacer()
+
+	menu0:AddOption("functions  :  f()"):SetTooltip("next to a name, parentheses indicate a function to evaluates\n\nsome example functions:\ntimeex()\nsin(time())\npart_distance(\"part_A\", \"part_B\")\nif_else(3, \">\", 2, 1, 0))")
+	menu0:AddOption("how many arguments?  :  f(...)"):SetTooltip("Some functions have no arguments e.g. time()\nsome contain arguments e.g. sin(x), some have mandatory arguments e.g. clamp(x,min,max)\nsome have optional or implicit arguments e.g. ezfade() = ezfade(1). ezfade supports up to 3 arguments: speed, starttime, endtime\npart_distance(\"pointA\") takes pointA for one position, and implicitly takes the proxy's parent part as the second position.\n\nsome functions have varargs (variable number of arguments means it's flexible)")
+	menu0:AddOption("Lua is case-sensitive."):SetTooltip("this is important for function names")
+	menu0:AddOption("basic rule of composition : functions lead to numbers"):SetTooltip("... so you can treat them as numbers. You can use functions inside functions.\nconsider sin(0)\nnow consider sin(timeex())\nit will be like it takes the 0 and changes it to a bigger and bigger number over time")
+	menu0:AddOption("types: numbers, \"strings\""):SetTooltip("most math inputs and outputs will be numbers, but certain functions require string argument, requiring quotes\npart_distance(\"point A\",\"point B\"), if_else(3, \">=\", 2, 1, 0))\nhealthmod_uidvalue(\"healthmodifier_name\")\n\nIt's usually designating part names or UIDs")
+	menu0:AddSpacer()
+
+	menu0:AddOption("vector notation  :  x,y,z"):SetTooltip("vector types, such as Position, Angles, and Color, can have up to three components")
+	menu0:AddOption("nil  :  nil,nil,5"):SetTooltip("Instead of using the Axis field, you may use null variables to skip certain axes\nnil,0,0 will leave room for another proxy to control x for example") 
+	menu0:AddOption("expanded outputs  :  f() -> x,y,z"):SetTooltip("hsv_to_color(h,s,v) expands to a vararg, which is then reconstructed into the color-vector.\nsame goes with command(\"cmd_name\") the console command pac_proxy can be set with up to 3 components, but if you use command() with another operator it'll use the first number only, so you can very much use it normally as a standard variable setter")
+	menu0:AddSpacer()
+	menu0:AddOption("open wiki", function() pace.ShowWiki("https://wiki.pac3.info/part/proxy") end):SetImage("icon16/information.png")
+
+	local menu1, pnl1 = menu:AddSubMenu(L"Proxy template bits", function()
+	end)
+	pnl1:SetIcon("icon16/cart_go.png")
+	for group, tbl in pairs(pace.bookmarked_ressources["proxy"]) do
+		local icon = "icon16/bullet_white.png"
+		if group == "user" then icon = "icon16/user.png"
+		elseif group == "fades and transitions" then icon = "icon16/shading.png"
+		elseif group == "pulses" then icon = "icon16/transmit_blue.png"
+		elseif group == "facial expressions" then icon = "icon16/emoticon_smile.png"
+		elseif group == "spatial" then icon = "icon16/world.png"
+		elseif group == "experimental things" then icon = "icon16/ruby.png"
+		end
+		local menu2, pnl2 = menu1:AddSubMenu(group)
+		pnl2:SetIcon(icon)
+
+		if not table.IsEmpty(tbl) then
+			for i,tbl2 in pairs(tbl) do
+				--print(tbl2.nicename)
+				local str = tbl2.nicename or "invalid name"
+				local pnl3 = menu2:AddOption(str, function()
+					if pace.current_part.ClassName == "proxy" then
+						local expression = pace.current_part.Expression
+						if expression == "" then --blank: bare insert
+							expression = tbl2.expression
+						elseif true then --something present: multiply the existing bit?
+							expression = expression .. " * " .. tbl2.expression
+						end
+
+						pace.current_part:SetProperty(key, expression)
+						self:SetValue(expression)
+					end
+
+				end)
+				pnl3:SetIcon(icon)
+				pnl3:SetTooltip(tbl2.explanation)
+			end
+
+		end
+	end
+
+	local tutorials, pnl2 = menu:AddSubMenu(L"Tutorials for the active functions")
+		for i, kw in ipairs(pace.current_part:GetActiveFunctions()) do
+			pace.current_part.errors_override = true --hack to stop competing SetInfo, SetWarning and SetError buttons
+			local tutorial = pace.current_part:GetTutorial(kw) if tutorial == nil then continue end
+			local pnl3 = tutorials:AddOption(kw, function()
+				pace.alternate_message_prompts = true
+				pace.current_part:SetInfo(tutorial)
+				pace.current_part:AttachEditorPopup(tutorial, true)
+			end) pnl3:SetIcon("icon16/calculator.png")
+			pnl3:SetTooltip(tutorial)
+		end
+	pnl2:SetImage("icon16/information.png")
+end
+
 function pace.CreateSearchList(property, key, name, add_columns, get_list, get_current, add_line, select_value, select_value_search)
 	select_value = select_value or function(val, key) return val end
 	select_value_search = select_value_search or select_value
@@ -1005,6 +1085,7 @@ do -- list
 
 	function PANEL:AddKeyValue(key, var, pos, obj, udata, group)
 		line_height = self:GetItemHeight()
+		self.line_heights = self.line_heights or 0
 		self.line_heights = self.line_heights + line_height
 		local btn = pace.CreatePanel("properties_label")
 			btn:SetTall(self:GetItemHeight())
@@ -1122,6 +1203,18 @@ do -- list
 						menu:MakePopup()
 						populate_bookmarks(menu, "sound", var)
 					end
+				end
+			elseif pace.current_part.ClassName == "proxy" and (key == "Expression" or key == "ExpressionOnHide" or pac.StringFind(key, "Extra")) then
+				local btn2 = vgui.Create("DImageButton", pnl)
+				btn2:SetSize(line_height / 1.5, line_height / 1.5)
+				btn2:Dock(RIGHT) pnl:DockPadding(0,0,self:GetItemHeight(),0)
+				btn2:SetTooltip("templates and tutorials")
+				btn2:SetImage("icon16/information.png")
+				btn2.DoClick = function()
+					local menu = DermaMenu()
+					menu:SetPos(input.GetCursorPos())
+					menu:MakePopup()
+					populate_proxy_info(menu, var, key)
 				end
 			end
 		end
@@ -1552,7 +1645,7 @@ do -- list
 				end
 			else
 				self:AddCollapser("flexes")
-				local flexes = pace.current_part:GetDynamicProperties()
+				local flexes = pace.current_part:GetDynamicProperties() or {}
 				--second pass : flexes (uncategorized)
 				for key, prop in SortedPairs(flexes) do
 					if pins:GetBool() and pace.pinned_properties_keyed[prop.key] and not pace.CollapsedProperties["pinned"] then continue end
@@ -2157,63 +2250,7 @@ do -- base editable
 		end
 
 		--proxy expression
-		if self.CurrentKey == "Expression" then
-
-
-			pace.bookmarked_ressources = pace.bookmarked_ressources or {}
-			pace.bookmarked_ressources["proxy"] = pace.bookmarked_ressources["proxy"]
-			local menu1, pnl1 = menu:AddSubMenu(L"Proxy template bits", function()
-            end)
-			pnl1:SetIcon("icon16/cart_go.png")
-			for group, tbl in pairs(pace.bookmarked_ressources["proxy"]) do
-				local icon = "icon16/bullet_white.png"
-				if group == "user" then icon = "icon16/user.png"
-				elseif group == "fades and transitions" then icon = "icon16/shading.png"
-				elseif group == "pulses" then icon = "icon16/transmit_blue.png"
-				elseif group == "facial expressions" then icon = "icon16/emoticon_smile.png"
-				elseif group == "spatial" then icon = "icon16/world.png"
-				elseif group == "experimental things" then icon = "icon16/ruby.png"
-				end
-				local menu2, pnl2 = menu1:AddSubMenu(group)
-				pnl2:SetIcon(icon)
-
-				if not table.IsEmpty(tbl) then
-					for i,tbl2 in pairs(tbl) do
-						--print(tbl2.nicename)
-						local str = tbl2.nicename or "invalid name"
-						local pnl3 = menu2:AddOption(str, function()
-							if pace.current_part.ClassName == "proxy" then
-								local expression = pace.current_part.Expression
-								if expression == "" then --blank: bare insert
-									expression = tbl2.expression
-								elseif true then --something present: multiply the existing bit?
-									expression = expression .. " * " .. tbl2.expression
-								end
-
-								pace.current_part:SetExpression(expression)
-								self:SetValue(expression)
-							end
-
-						end)
-						pnl3:SetIcon(icon)
-						pnl3:SetTooltip(tbl2.explanation)
-					end
-
-				end
-			end
-
-			local tutorials, pnl2 = menu:AddSubMenu(L"Tutorials for the active functions")
-				for i, kw in ipairs(pace.current_part:GetActiveFunctions()) do
-					pace.current_part.errors_override = true --hack to stop competing SetInfo, SetWarning and SetError buttons
-					local tutorial = pace.current_part:GetTutorial(kw) if tutorial == nil then continue end
-					local pnl3 = tutorials:AddOption(kw, function()
-						pace.alternate_message_prompts = true
-						pace.current_part:SetInfo(tutorial)
-						pace.current_part:AttachEditorPopup(tutorial, true)
-					end) pnl3:SetIcon("icon16/calculator.png")
-					pnl3:SetTooltip(tutorial)
-				end
-			pnl2:SetImage("icon16/information.png")
+		if pace.current_part.ClassName == "proxy" and (key == "Expression" or key == "ExpressionOnHide" or pac.StringFind(key, "Extra")) then	populate_proxy_info(menu, self, self.CurrentKey)
 		end
 
 		if self.CurrentKey == "Function" or self.CurrentKey == "Input" then
@@ -2314,7 +2351,13 @@ do -- base editable
 			mat_name = mat_name .. "_" .. string.sub(pace.current_part.UniqueID,1,6)
 			mat_name = string.Replace(mat_name, " ", "")
 			local menu2, pnl = menu:AddSubMenu("Edit Material (will be named " .. mat_name .. ")", function()
-				local newmaterial = pac.CreatePart("material_2d") newmaterial:SetParent(pace.current_part)
+				local newmaterial = pac.CreatePart("material_2d")
+				if self.CurrentKey == "SpritePath" then
+					newmaterial:SetParent(pace.current_part:GetParent())
+					newmaterial:SetDrawOrder(pace.current_part:GetDrawOrder() - 1)
+				else
+					newmaterial:SetParent(pace.current_part)
+				end
 				newmaterial:SetName(mat_name)
 				newmaterial:SetProperty("LoadVmt", part_material)
 				pace.current_part:SetProperty(self.CurrentKey, mat_name)
@@ -2322,14 +2365,26 @@ do -- base editable
 			pnl:SetImage("icon16/paintcan.png")
 
 			menu2:AddOption("Make transparent (vertex alpha) (for transparent textures)", function()
-				local newmaterial = pac.CreatePart("material_2d") newmaterial:SetParent(pace.current_part)
+				local newmaterial = pac.CreatePart("material_2d")
+				if self.CurrentKey == "SpritePath" then
+					newmaterial:SetParent(pace.current_part:GetParent())
+					newmaterial:SetDrawOrder(pace.current_part:GetDrawOrder() - 1)
+				else
+					newmaterial:SetParent(pace.current_part)
+				end
 				newmaterial:SetName(mat_name)
 				newmaterial:SetProperty("LoadVmt", part_material)
 				pace.current_part:SetProperty(self.CurrentKey, mat_name)
 				newmaterial:Setvertexalpha(true)
 			end):SetImage("icon16/paintcan.png")
 			menu2:AddOption("Make transparent (additive) (for black backgrounds)", function()
-				local newmaterial = pac.CreatePart("material_2d") newmaterial:SetParent(pace.current_part)
+				local newmaterial = pac.CreatePart("material_2d")
+				if self.CurrentKey == "SpritePath" then
+					newmaterial:SetParent(pace.current_part:GetParent())
+					newmaterial:SetDrawOrder(pace.current_part:GetDrawOrder() - 1)
+				else
+					newmaterial:SetParent(pace.current_part)
+				end
 				newmaterial:SetName(mat_name)
 				newmaterial:SetProperty("LoadVmt", part_material)
 				pace.current_part:SetProperty(self.CurrentKey, mat_name)
@@ -2446,6 +2501,21 @@ do -- base editable
 						self.OnValueChanged(self:GetValue())
 						pace.PopulateProperties(pace.current_part)
 					end):SetImage("icon16/arrow_down.png")
+				end
+			end
+		end
+
+		if pace.current_part.ClassName == "event" then
+			if string.find(self.CurrentKey, "uid") then
+				for i, uid in ipairs(string.Split(self:GetValue(),";")) do
+					local part = pace.current_part:GetOrFindCachedPart(uid)
+					if IsValid(part) then
+						menu:AddOption("jump to " .. tostring(part), function()
+							pace.GoToPart(part)
+						end):SetImage("icon16/arrow_turn_right.png")
+					else
+						menu:AddOption("<error>"):SetImage("icon16/cancel.png")
+					end
 				end
 			end
 		end
