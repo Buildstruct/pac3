@@ -3668,11 +3668,12 @@ PART.last_event_triggered = false
 
 function PART:fix_args()
 	local args = string.Split(self.Arguments, "@@")
-	if self.Events[self.Event] then
-		if self.Events[self.Event].__registeredArguments then
+	local event_data = self.Events[self.Event] --caching to save on index calls
+	if event_data then
+		if event_data.__registeredArguments then
 			--PrintTable(self.Events[self.Event].__registeredArguments)
-			if #self.Events[self.Event].__registeredArguments ~= #args then
-				for argn,arg in ipairs(self.Events[self.Event].__registeredArguments) do
+			if #event_data.__registeredArguments ~= #args then
+				for argn,arg in ipairs(event_data.__registeredArguments) do
 					if not args[argn] or args[argn] == "" then
 						local added_arg = "0"
 						if arg[2] == "boolean" then
@@ -3694,13 +3695,10 @@ function PART:fix_args()
 			end
 		end
 	end
+	self.fixed_args = self.Arguments
 end
 
 function PART:OnThink()
-	self.nextactivationrefresh = self.nextactivationrefresh or CurTime()
-	if not self.singleactivatestate and self.nextactivationrefresh < CurTime() then
-		self.singleactivatestate = true
-	end
 
 	local ent = get_owner(self)
 	if not ent:IsValid() then return end
@@ -3709,7 +3707,7 @@ function PART:OnThink()
 
 	if not data then return end
 
-	self:fix_args()
+	if self.fixed_args ~= self.Arguments then self:fix_args() end
 	self:TriggerEvent(should_trigger(self, ent, data))
 
 	if pace and pace.IsActive() and self.Name == "" then
@@ -3985,7 +3983,6 @@ function PART:OnShow()
 		self.number = 0
 	end
 	self.showtime = CurTime()
-	self.singleactivatestate = true
 end
 
 function PART:OnAnimationEvent(ent)
