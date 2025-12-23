@@ -2069,10 +2069,10 @@ function PART:OnThink(to_hide)
 			end
 		end
 
-		if not self.PreviewOutput then
+		if not playerowner and not self.PreviewOutput then
 			if not self.pace_tree_node then return end
 			if not self.pace_tree_node:IsValid() then return end
-		elseif playerowner then
+		else
 
 			local str = ""
 
