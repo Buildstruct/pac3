@@ -1955,6 +1955,7 @@ function PART:OnRemove()
 end
 
 function PART:OnThink(to_hide)
+	local playerowner = self:GetPlayerOwner() == pac.LocalPlayer
 	local part = self:GetTarget()
 	if not part:IsValid() then return end
 	if part.ClassName == 'woohoo' then --why a part hardcode exclusion??
@@ -1964,14 +1965,19 @@ function PART:OnThink(to_hide)
 		end
 	end
 
-	--foolproofing: scream at the user if they didn't set a variable name and there's no extra expressions ready to be used
-	if self == pace.current_part then self.touched = true end
-	if self ~= pace.current_part and self.VariableName == "" and self.touched and self.Extra1 == ""	and self.Extra2 == "" and self.Extra3 == "" and self.Extra4 == "" and self.Extra5 == "" then
-		self:AttachEditorPopup("You forgot to set a variable name! The proxy won't work until it knows where to send the math!", true)
-		pace.FlashNotification("An edited proxy still has no variable name! The proxy won't work until it knows where to send the math!")
-		self:SetWarning("You forgot to set a variable name! The proxy won't work until it knows where to send the math!")
-		self.touched = false
-	elseif self.VariableName ~= "" and not self.error and not self.errors_override then self:SetWarning() end
+	if playerowner then
+		if pace and pace.IsActive() then
+			--foolproofing: scream at the user if they didn't set a variable name and there's no extra expressions ready to be used
+			if self == pace.current_part then self.touched = true end
+			if self ~= pace.current_part and self.VariableName == "" and self.touched and self.Extra1 == ""	and self.Extra2 == "" and self.Extra3 == "" and self.Extra4 == "" and self.Extra5 == "" then
+				self:AttachEditorPopup("You forgot to set a variable name! The proxy won't work until it knows where to send the math!", true)
+				pace.FlashNotification("An edited proxy still has no variable name! The proxy won't work until it knows where to send the math!")
+				self:SetWarning("You forgot to set a variable name! The proxy won't work until it knows where to send the math!")
+				self.touched = false
+			elseif self.VariableName ~= "" and not self.error and not self.errors_override then self:SetWarning() end
+		end
+	end
+	
 
 	self:CalcVelocity()
 
@@ -1999,7 +2005,7 @@ function PART:OnThink(to_hide)
 		local ok, x,y,z = self:RunExpression(ExpressionFunc)
 
 		if not ok then self.error = true
-			if self:GetPlayerOwner() == pac.LocalPlayer and self.Expression ~= self.LastBadExpression then
+			if playerowner and self.Expression ~= self.LastBadExpression then
 				--don't spam the chat every time we type a single character in the luapad
 				if not (pace.ActiveSpecialPanel and pace.ActiveSpecialPanel.luapad) then
 					chat.AddText(Color(255,180,180),"============\n[ERR] PAC Proxy error on "..tostring(self)..":\n"..x.."\n============\n")
@@ -2063,7 +2069,10 @@ function PART:OnThink(to_hide)
 			end
 		end
 
-		if pace and pace.IsActive() then
+		if not self.PreviewOutput then
+			if not self.pace_tree_node then return end
+			if not self.pace_tree_node:IsValid() then return end
+		elseif playerowner then
 
 			local str = ""
 
@@ -2153,7 +2162,7 @@ function PART:OnThink(to_hide)
 		end
 		self:SetError(error_msg) self.error = true
 	end
-	if self:GetPlayerOwner() == pac.LocalPlayer then
+	if playerowner then
 		if self.PreviewOutput then
 			pac.AddHook("HUDPaint", "proxy" .. self.UniqueID, function() draw_proxy_text(self, str) end)
 		else
