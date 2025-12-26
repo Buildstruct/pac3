@@ -373,8 +373,8 @@ do -- hook helpers
 		end
 		if pac.IsEnabled() then
 			hook.Add(event_name, id, func, priority)
-			pac.added_hooks[event_name .. tostring(id)] = {event_name = event_name, id = id, func = func, priority = priority}
 		end
+		pac.added_hooks[event_name .. tostring(id)] = {event_name = event_name, id = id, func = func, priority = priority}
 	end
 
 	function pac.RemoveHook(event_name, id)
