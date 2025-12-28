@@ -107,8 +107,9 @@ function PART:GetOrFindCachedPart(uid_or_name)
 	self.erroring_cached_parts = {}
 	self.found_cached_parts = self.found_cached_parts or {}
 	if self.found_cached_parts[uid_or_name] then self.erroring_cached_parts[uid_or_name] = nil return self.found_cached_parts[uid_or_name] end
-	if self.erroring_cached_parts[uid_or_name] then return end
-	if self.bad_uid_search and self.bad_uid_search > 250 then return end
+	if self.bad_uid_search and self.bad_uid_search > 250 then
+		return
+	end
 
 	local owner = self:GetPlayerOwner()
 	part = pac.GetPartFromUniqueID(pac.Hash(owner), uid_or_name) or pac.FindPartByPartialUniqueID(pac.Hash(owner), uid_or_name)
@@ -122,10 +123,11 @@ function PART:GetOrFindCachedPart(uid_or_name)
 		self.erroring_cached_parts[uid_or_name] = true
 		self.bad_uid_search = self.bad_uid_search or 0
 		self.bad_uid_search = self.bad_uid_search + 1
-		if self:GetPlayerOwner() == LocalPlayer() and not pace.still_loading_wearing then
+		if self:GetPlayerOwner() == LocalPlayer() and not pace.still_loading_wearing and self.bad_uid_search > 2 then
 			pace.FlashNotification("performance warning! " .. tostring(self) .. " keeps searching for parts not finding anything! " .. tostring(uid_or_name) .. " may be unused!")
 		end
 	else
+		self.bad_uid_search = nil
 		self.found_cached_parts[uid_or_name] = part
 		return part
 	end
@@ -457,7 +459,7 @@ PART.Inputs.sample_and_hold = function(self, seed, duration, min, max, ease)
 	self.samplehold = self.samplehold or {}
 	self.samplehold_prev = self.samplehold_prev or {}
 	self.samplehold_duration = self.samplehold_duration or {}
-	self.samplehold_prev[seed] = self.samplehold_prev[seed] or {value = min, refresh = CurTime()}
+	self.samplehold_prev[seed] = self.samplehold_prev[seed] or {value = min + math.random()*(max-min), refresh = CurTime()}
 	self.samplehold[seed] = self.samplehold[seed] or {value = min + math.random()*(max-min), refresh = CurTime() + duration}
 
 	self.samplehold_duration[seed] = self.samplehold_duration[seed] or CurTime()
@@ -745,6 +747,7 @@ PART.Inputs.ezfade = function(self, speed, starttime, endtime)
 	starttime = starttime or 0
 	self.time = self.time or pac.RealTime
 	local timeex = pac.RealTime - self.time
+	if self.timeex_override then timeex = self.timeex_override end
 	local start_offset_constant = -starttime * speed
 	local result = 0
 
@@ -777,6 +780,7 @@ PART.Inputs.ezfade_4pt = function(self, in_starttime, in_endtime, out_starttime,
 
 	self.time = self.time or pac.RealTime
 	local timeex = pac.RealTime - self.time
+	if self.timeex_override then timeex = self.timeex_override end
 
 	if in_starttime == in_endtime then
 		if timeex < in_starttime then
@@ -1143,6 +1147,7 @@ PART.Inputs.pose_parameter_true = function(self, name)
 	local owner = get_owner(self)
 	if owner:IsValid() then
 		local min, max = owner:GetPoseParameterRange(owner:LookupPoseParameter(name))
+		if not min or not max then return 0 end
 		return min + (max - min)*(owner:GetPoseParameter(name))
 	end
 	return 0
@@ -1467,6 +1472,32 @@ do
 	end
 end
 
+PART.Inputs.dot_forward = function(self)
+	local part = get_owner(self)
+
+	if part:IsValid() then
+		local ang = part:IsPlayer() and part:EyeAngles() or part:GetAngles()
+		local dir = pac.EyePos - part:EyePos()
+		dir:Normalize()
+		return dir:Dot(ang:Forward())
+	end
+
+	return 0
+end
+
+PART.Inputs.dot_right = function(self)
+	local part = get_owner(self)
+
+	if part:IsValid() then
+		local ang = part:IsPlayer() and part:EyeAngles() or part:GetAngles()
+		local dir = pac.EyePos - part:EyePos()
+		dir:Normalize()
+		return dir:Dot(ang:Right())
+	end
+
+	return 0
+end
+
 PART.Inputs.flat_dot_forward = function(self)
 	local part = get_owner(self)
 
@@ -1687,31 +1718,43 @@ function PART:SetExpression(str, slot)
 end
 
 function PART:SetExpressionOnHide(str)
+	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
+	self.error = false
 	self.ExpressionOnHide = str
 	self:SetExpression(str, 0)
 end
 
 function PART:SetExtra1(str)
+	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
+	self.error = false
 	self.Extra1 = str
 	self:SetExpression(str, 1)
 end
 
 function PART:SetExtra2(str)
+	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
+	self.error = false
 	self.Extra2 = str
 	self:SetExpression(str, 2)
 end
 
 function PART:SetExtra3(str)
+	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
+	self.error = false
 	self.Extra3 = str
 	self:SetExpression(str, 3)
 end
 
 function PART:SetExtra4(str)
+	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
+	self.error = false
 	self.Extra4 = str
 	self:SetExpression(str, 4)
 end
 
 function PART:SetExtra5(str)
+	if not self.errors_override then self:SetWarning() else timer.Simple(10, function() self:SetWarning() end) end
+	self.error = false
 	self.Extra5 = str
 	self:SetExpression(str, 5)
 end
@@ -2177,6 +2220,12 @@ function PART:GetActiveFunctions()
 	if self.Expression == "" then return {self.Input, self.Function} end
 	local possible_funcs = {}
 	for kw,_ in pairs(PART.Inputs) do
+		local kw2 = kw .. "("
+		if string.find(self.Expression, kw2, 0, true) ~= nil then
+			table.insert(possible_funcs, kw)
+		end
+	end
+	for kw,_ in pairs(PART.Functions) do
 		local kw2 = kw .. "("
 		if string.find(self.Expression, kw2, 0, true) ~= nil then
 			table.insert(possible_funcs, kw)
