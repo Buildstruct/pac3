@@ -1444,6 +1444,8 @@ do -- grapher - line chart
 				pace.CloseProxyGrapher()
 			end
 
+		reset_points_cache(true)
+		PlanOutSamplePoints()
 	end
 
 	function pace.CloseProxyGrapher()
