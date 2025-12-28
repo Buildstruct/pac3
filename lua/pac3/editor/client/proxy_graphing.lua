@@ -9,7 +9,12 @@ for ease,f in pairs(math.ease) do
 	end
 end
 do -- grapher - line chart
-	local current_runtime_data = {}
+	local current_runtime_data = {
+		output_bounds = {0, 10},
+		step = 0,
+		scroll = false,
+		input_bounds = {-10,10},
+	}
 	local sampled_data = {}
 	local mouse_hovering = false
 	local relative_mx = 0
@@ -953,7 +958,7 @@ do -- grapher - line chart
 			end
 			if pace.reset_proxygraph then points_cache = {} pace.reset_proxygraph = nil end
 			local input_data = SampleData(tracked_proxy, graph_x_variable, runtime_data)
-			
+
 			if runtime_data.nils then
 				if runtime_data.nils.x and graph_axis == "x" then graph_axis = "y" graph_title = "nil output on x, switched to y" end
 				if runtime_data.nils.y and graph_axis == "y" then graph_axis = "z" graph_title = "nil output on y, switched to z" end
