@@ -1449,8 +1449,13 @@ do -- grapher - line chart
 				pace.CloseProxyGrapher()
 			end
 
-		reset_points_cache(true)
-		PlanOutSamplePoints()
+		--hack fix to update the expression when it's an easy setup
+		if tracked_proxy.Expression == "" then
+			tracked_proxy:SetExpression(" ")
+			timer.Simple(0, function()
+				tracked_proxy:SetExpression("")
+			end)
+		end
 	end
 
 	function pace.CloseProxyGrapher()
