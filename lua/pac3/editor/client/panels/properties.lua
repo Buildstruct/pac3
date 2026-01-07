@@ -2025,6 +2025,13 @@ do -- base editable
 			menu:SetPos(input.GetCursorPos())
 			menu:MakePopup()
 			self:PopulateContextMenu(menu)
+			pac.RunNextFrameSimple(function()
+				local x,y = input.GetCursorPos()
+				local w,h = menu:GetCanvas():GetParent():GetSize()
+				if ScrH() < y + h then
+					menu:SetPos(x, ScrH() - h)
+				end
+			end)
 		end
 	end
 
@@ -3358,6 +3365,7 @@ do -- boolean
 		chck.DoRightClick = function()
 			local menu = DermaMenu()
 			menu:SetPos(input.GetCursorPos())
+			menu:MakePopup()
 			if self.user_proxies then
 				for _,part in pairs(self.user_proxies) do
 					menu:AddOption("jump to " .. tostring(part), function()
@@ -3485,7 +3493,13 @@ do -- boolean
 					self.OnValueChanged(val)
 				end
 			end):SetImage(pace.MiscIcons.clear)
-			menu:MakePopup()
+			pac.RunNextFrameSimple(function()
+				local x,y = input.GetCursorPos()
+				local w,h = menu:GetCanvas():GetParent():GetSize()
+				if ScrH() < y + h then
+					menu:SetPos(x, ScrH() - h)
+				end
+			end)
 		end
 		self.chck = chck
 
