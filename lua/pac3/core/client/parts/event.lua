@@ -186,6 +186,8 @@ local tracked_events = {
 	damage_zone_kill = true,
 	lockpart_grabbing = true
 }
+
+local pref_cmd_op = CreateClientConVar("pac_event_command_default_operator", "find simple", true, false, "operator to set when setting up a command event through the shortcut method of typing an arbitrary text in the event field")
 function PART:SetEvent(event)
 	local reset = (self.Arguments == "") or
 	(self.Arguments ~= "" and self.Event ~= "" and self.Event ~= event)
@@ -233,6 +235,7 @@ function PART:SetEvent(event)
 					timer.Simple(0.2, function()
 						if not self.pace_properties or self ~= pace.current_part then return end
 						self:SetEvent("command")
+						self:SetOperator(pref_cmd_op:GetString())
 						self:SetArguments(event .. "@@0")
 						pace.PopulateProperties(self)
 					end)
