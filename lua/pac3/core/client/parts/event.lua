@@ -3828,6 +3828,7 @@ PART.Operators = {
 	"find simple",
 
 	"maybe",
+	"changed",
 }
 
 pac.EventArgumentCache = {}
