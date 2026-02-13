@@ -3037,6 +3037,25 @@ PART.OldEvents = {
 			return string.format("steamid: [%s %s]", self.Operator, idSumm)
 		end
 	},
+
+	text = {
+		operator_type = "string",
+		tutorial = "compares a text part's text\nthis can be useful with the changed operator",
+		arguments = {{uid = "string"}, {compare = "string"}, {truncated = "boolean"}},
+		callback = function(self, ent, uid, compare, truncated)
+			local part = self:GetOrFindCachedPart(uid)
+			if part and part:IsValid() and part.ClassName == "text" then
+				if not truncated then
+					return self:StringOperator(part.DisplayTextPreTruncate, compare)
+				else
+					return self:StringOperator(part.DisplayTextPostTruncate, compare)
+				end
+			end
+			return false
+		end,
+	},
+
+
 }
 
 

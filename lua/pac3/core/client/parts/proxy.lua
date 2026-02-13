@@ -1603,6 +1603,33 @@ end
 
 PART.Inputs.healthmod_bar_remaining_bars = PART.Inputs.pac_healthbar_remaining_bars
 
+PART.Inputs.text_length_raw = function(self, uid)
+	local part = self:GetOrFindCachedPart(uid)
+	if not IsValid(part) then return 0 end
+	if part.ClassName ~= "text" then return 0 end
+	return part.DisplayTextLengthPreTruncate or 0
+end
+PART.Inputs.text_length_raw_nospaces = function(self, uid)
+	local part = self:GetOrFindCachedPart(uid)
+	if not IsValid(part) then return 0 end
+	if part.ClassName ~= "text" then return 0 end
+	if not part.DisplayTextPreTruncate then return 0 end
+	local chars = 0
+	for c=1,#part.DisplayTextPreTruncate do
+		if part.DisplayTextPreTruncate[c] ~= " " then
+			chars = chars + 1
+		end
+	end
+	return chars
+end
+PART.Inputs.text_length_truncated = function(self, uid)
+	local part = self:GetOrFindCachedPart(uid)
+	if not IsValid(part) then return 0 end
+	if part.ClassName ~= "text" then return 0 end
+	return part.DisplayTextLengthPostTruncate or 0
+end
+
+
 
 local proxy_verbosity = CreateConVar("pac_proxy_verbosity", 1, FCVAR_ARCHIVE, "whether to print info when running pac_proxy")
 net.Receive("pac_proxy", function()
