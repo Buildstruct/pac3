@@ -798,12 +798,6 @@ net.Receive("pac_hit_results", function(len)
 	local pos = self:GetWorldPosition()
 	local owner = self:GetPlayerOwner()
 
-	--START_BS_MOD
-	--Octo 3/32026
-	--Purpose: Set off a client hook so we know what a damage zone did for crediting in the killcam.
-	hook.Run("BS_pacHitResults", owner, uid, self, pos, hit, kill, highest_dmg, do_ents_feedback, ents_hit, ents_kill)
-	--END_BS_MOD
-
 	self.lag_risk = table.Count(ents_hit) > 15
 
 	local function ValidSound(part)

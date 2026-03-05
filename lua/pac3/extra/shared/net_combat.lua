@@ -878,7 +878,7 @@ if SERVER then
 				end
 
 			end
-			
+
 		end
 	end)
 
@@ -1261,7 +1261,7 @@ if SERVER then
 								active_dots[ent][timer_entid] = tbl
 							end
 						end
-						
+
 					end
 					if not tbl.NoInitialDOT then DoDamage(ent) end
 				end
@@ -1386,7 +1386,7 @@ if SERVER then
 						or is_physics
 						or IsValid( ent_getphysobj )
 					) then
-				
+
 				local is_phys = true
 				if ent_getphysobj ~= nil then
 					phys_ent = ent_getphysobj
@@ -1867,7 +1867,7 @@ if SERVER then
 
 		end)
 	end
-	
+
 	local active_DoT = {}
 	local requesting_corpses = {}
 
@@ -2125,6 +2125,14 @@ if SERVER then
 			end
 			hit,kill,highest_dmg,successful_hit_ents,successful_kill_ents = ProcessDamagesList(ents_hits, dmg_info, tbl, pos, ang, ply)
 			highest_dmg = highest_dmg or 0
+
+			--START_BS_MOD
+			--Octo 3/3/2026
+			--Purpose: Set off a client hook so we know what a damage zone did for crediting in the killcam.
+			--Passes owner, damage zone UID, if it killed, and who it killed
+			hook.Run("BS_pacDamageZoneResults", ply, tbl.UniqueID, kill, successful_kill_ents)
+			--END_BS_MOD
+
 			net.Start("pac_hit_results", true)
 			net.WriteString(tbl.UniqueID)
 			net.WriteBool(hit)
