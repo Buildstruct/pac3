@@ -2128,7 +2128,7 @@ if SERVER then
 			--Octo 3/3/2026
 			--Purpose: Set off a client hook so we know what a damage zone did for crediting in the killcam.
 			--Passes owner, damage zone UID, if it killed, and who it killed
-			hook.Run("BS_pacDamageZoneResults", ply, tbl.UniqueID, dmg_info, ents_hits)
+			hook.Run("BS_pacDamageZoneResults", ply, tbl, tbl.UniqueID, dmg_info, ents_hits)
 			--END_BS_MOD
 
 			hit,kill,highest_dmg,successful_hit_ents,successful_kill_ents = ProcessDamagesList(ents_hits, dmg_info, tbl, pos, ang, ply)
