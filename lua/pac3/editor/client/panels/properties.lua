@@ -687,6 +687,12 @@ function pace.CreateSearchList(property, key, name, add_columns, get_list, get_c
 
 	local first = NULL
 
+	local hoverpreview_excluded = {
+		["VariableName"] = true,
+		["ToVariableName"] = true,
+		["FromVariableName"] = true,
+	}
+
 	local function build(find)
 		list:Clear()
 
@@ -714,7 +720,7 @@ function pace.CreateSearchList(property, key, name, add_columns, get_list, get_c
 					pnl:SetTooltip(pace.TUTORIALS["events"][key])
 				end
 
-				if preview_hovers:GetBool() then
+				if preview_hovers:GetBool() and not hoverpreview_excluded[property.CurrentKey] then
 					pnl.Think = function()
 						pnl.hovering = pnl:IsHovered()
 						if pnl.hovering then
