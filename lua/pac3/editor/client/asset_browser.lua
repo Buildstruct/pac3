@@ -498,6 +498,8 @@ local function create_material_icon(path, grid_panel)
 	
 	icon.Think = function()
 		if not preview_mats:GetBool() then return end
+		if not IsValid(pace.current_part) then return end
+		if not pace.IsActive() then return end
 		icon.hovering = icon:IsHovered()
 		if icon.hovering then
 			pace.current_part:SetProperty(pace.model_browser_part_key, mat_path)

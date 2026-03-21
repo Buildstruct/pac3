@@ -72,6 +72,7 @@ function pace.GoToPart(part)
 end
 
 local function install_generic_preview_hover(option, key, preview_value)
+	if not key then return end
 	option.Think = function()
 		option.hovering = option:IsHovered()
 		if option.hovering then
@@ -722,6 +723,8 @@ function pace.CreateSearchList(property, key, name, add_columns, get_list, get_c
 
 				if preview_hovers:GetBool() and not hoverpreview_excluded[property.CurrentKey] then
 					pnl.Think = function()
+						if not IsValid(pace.current_part) then return end
+						if not property or not property.CurrentKey then return end
 						pnl.hovering = pnl:IsHovered()
 						if pnl.hovering then
 							pace.current_part:SetProperty(property.CurrentKey, val)
