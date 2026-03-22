@@ -498,8 +498,10 @@ local function create_material_icon(path, grid_panel)
 	
 	icon.Think = function()
 		if not preview_mats:GetBool() then return end
+		if not pace.model_browser_part_key then return end
 		if not IsValid(pace.current_part) then return end
 		if not pace.IsActive() then return end
+		if not pace.current_part.SetProperty then return end
 		icon.hovering = icon:IsHovered()
 		if icon.hovering then
 			pace.current_part:SetProperty(pace.model_browser_part_key, mat_path)
@@ -820,6 +822,7 @@ function pace.AssetBrowser(callback, browse_types_str, part_key)
 
 	function frame:OnClose()
 		self:SetVisible(false)
+		pace.model_browser_part_key = nil
 	end
 
 	local menu_bar = vgui.Create("DMenuBar", frame)
