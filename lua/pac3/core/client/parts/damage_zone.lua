@@ -279,6 +279,8 @@ local function CleanupParts(group)
 end
 
 function PART:FindOrCreateFloatingPart(owner, ent, part_uid, id, parent_ent)
+	if not IsValid(owner) or not IsValid(ent) then return end
+
 	owner.hitmarker_partpool = owner.hitmarker_partpool or {}
 	for spec_uid,tbl in pairs(owner.hitmarker_partpool) do
 		if tbl.template_uid == part_uid then
@@ -319,6 +321,8 @@ net.Receive("pac_send_ragdoll", function(len)
 end)
 
 local function TryAttachPartToAnEntity(self,group,parent_ent,marker_ent,killing)
+	if not IsValid(parent_ent) or not IsValid(marker_ent) then return end
+
 	local can_do_ragdolls = GetConVar("pac_sv_damage_zone_allow_ragdoll_hitparts"):GetBool()
 	if killing and can_do_ragdolls then
 		if isstring(killing) then
@@ -362,6 +366,8 @@ local function TryAttachPartToAnEntity(self,group,parent_ent,marker_ent,killing)
 end
 
 local function FreeSpotInStack(owner)
+	if not IsValid(owner) then return end
+
 	owner.hitparts = owner.hitparts or {}
 	owner.hitparts_freespots = owner.hitparts_freespots or {}
 	for i=1,50,1 do
@@ -385,6 +391,8 @@ end
 ]]
 
 local function MatchInStack(owner, ent)
+	if not IsValid(owner) or not IsValid(ent) then return end
+
 	owner.hitparts = owner.hitparts or {}
 	for i=1,50,1 do
 		if owner.hitparts[i] then
@@ -400,6 +408,8 @@ local function MatchInStack(owner, ent)
 end
 
 local function UIDMatchInStackForExistingPart(owner, ent, part_uid, ent_id)
+	if not IsValid(owner) or not IsValid(ent) then return end
+
 	owner.hitparts = owner.hitparts or {}
 	for i=1,50,1 do
 		if owner.hitparts[i] then
@@ -426,6 +436,8 @@ end
 	owner.hitparts[free] = {active, specimen_part, hitmarker_id, template_uid}
 ]]
 function PART:AddHitMarkerToStack(index, owner, ent, part_uid, ent_id, parent_ent, killing)
+	if not IsValid(owner) or not IsValid(ent) or not IsValid(parent_ent) then return end
+
 	--print("trying to add to stack:")
 	--print("\t\t",owner, ent, part_uid, ent_id, parent_ent)
 	owner.hitparts = owner.hitparts or {}
@@ -449,6 +461,8 @@ function PART:AddHitMarkerToStack(index, owner, ent, part_uid, ent_id, parent_en
 end
 
 local function RemoveHitMarker(owner, ent, uid, id)
+	if not IsValid(owner) or not IsValid(ent) then return end
+
 	owner.hitparts = owner.hitparts or {}
 
 	local match = MatchInStack(owner, ent)
@@ -477,7 +491,7 @@ end
 ]]
 function PART:AssignFloatingPartToEntity(index, part, owner, ent, parent_ent, template_uid, marker_id)
 
-	if not IsValid(part) then return false end
+	if not IsValid(part) or not IsValid(owner) or not IsValid(ent)  or not IsValid(parent_ent) then return false end
 
 	ent.pac_draw_distance = 0
 
@@ -684,6 +698,10 @@ function PART:SendNetMessage()
 end
 
 function PART:OnShow()
+	if not IsValid(self) then return end
+	local owner = self:GetPlayerOwner()
+	if not IsValid(owner) then return end
+
 	self.remaining_DOT_count = self.DOTCount
 	self.next_DOT = self.NoInitialDOT and CurTime() + self.DOTTime or CurTime() - 1
 
@@ -694,12 +712,15 @@ function PART:OnShow()
 		self:PreviewHitbox()
 	end
 	self.stop_until = self.stop_until or 0
-	if self.stop_until then self:GetPlayerOwner().stop_hit_markers_admonishment_message_up = nil end
-	if (self:GetPlayerOwner().stop_hit_markers_admonishment_message_up) or self.stop_until > CurTime() then return end
+	if self.stop_until then owner.stop_hit_markers_admonishment_message_up = nil end
+	if (owner.stop_hit_markers_admonishment_message_up) or self.stop_until > CurTime() then return end
 
 	if self.DOTMethod == "RefreshZone" then return end --handle with Think
 
-	if self:GetRootPart():GetOwner() ~= self:GetPlayerOwner() then --dumb workaround for when it activates before it realizes it needs to be hidden first
+	local rootOwner = self:GetRootPart():GetOwner()
+	if not IsValid(rootOwner) then return end
+
+	if rootOwner ~= owner then --dumb workaround for when it activates before it realizes it needs to be hidden first
 		timer.Simple(0.01, function() --wait to check if needs to be hidden first
 			if self:IsHidden() or self:IsDrawHidden() then return end
 			if self.Preview then
@@ -719,19 +740,22 @@ end
 
 local dmgzone_requesting_corpses = {}
 function PART:SetAttachPartsToTargetEntity(b)
+	local owner = self:GetPlayerOwner()
+	if not IsValid(owner) then return end
+
 	self.AttachPartsToTargetEntity = b
-	if pac.LocalPlayer ~= self:GetPlayerOwner() then return end
+	if pac.LocalPlayer ~= owner then return end
 	if self.KillMarkerPart == nil then return end
 	if b then
 		net.Start("pac_request_ragdoll_sends")
-		net.WriteBool(true)
+			net.WriteBool(true)
 		net.SendToServer()
 		dmgzone_requesting_corpses[self] = true
 	else
 		dmgzone_requesting_corpses[self] = nil
 		if table.Count(dmgzone_requesting_corpses) == 0 then
 			net.Start("pac_request_ragdoll_sends")
-			net.WriteBool(false)
+				net.WriteBool(false)
 			net.SendToServer()
 		end
 	end
@@ -739,6 +763,7 @@ end
 
 --revertable to projectile part's version which wastes time creating new parts but has less issues
 function PART:LegacyAttachToEntity(part, ent)
+	if not IsValid(ent) then return false end
 	if not part:IsValid() then return false end
 
 	ent.pac_draw_distance = 0
