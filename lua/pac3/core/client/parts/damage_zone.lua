@@ -180,8 +180,6 @@ function PART:LaunchAuditAndEnforceSoftBan(amount, reason)
 		return
 	end
 	local owner = self:GetPlayerOwner()
-	if not IsValid(owner) then return end
-
 	if owner ~= LocalPlayer() then return end
 	owner.stop_hit_markers_admonishment_count = owner.stop_hit_markers_admonishment_count or 1
 	owner.stop_hit_markers_admonishment_message_up = false
@@ -515,8 +513,6 @@ function PART:ClearHitMarkers()
 		if IsValid(part) then part:GetRootOwner():Remove() end
 	end
 	local ply = self:GetPlayerOwner()
-	if not IsValid(ply) then return end --CMON CEDRIC. IT'S THIS EASY
-
 	if ply.hitparts then
 		for i,v in pairs(ply.hitparts) do
 			v.specimen_part:Remove()
@@ -745,15 +741,12 @@ function PART:LegacyAttachToEntity(part, ent)
 
 	local tbl = part:ToTable()
 
-	local ply = self:GetPlayerOwner()
-	if not IsValid(ply) then return end
-
-	local group = pac.CreatePart("group", ply)
+	local group = pac.CreatePart("group", self:GetPlayerOwner())
 	table.insert(hitparts_dump, {self, group, ent})
 	self.force_cleanup_hitparts = CurTime() + math.max(self.HitMarkerLifetime, self.KillMarkerLifetime)
 	group:SetShowInEditor(false)
 
-	local part_clone = pac.CreatePart(tbl.self.ClassName, ply, tbl, tostring(tbl))
+	local part_clone = pac.CreatePart(tbl.self.ClassName, self:GetPlayerOwner(), tbl, tostring(tbl))
 	group:AddChild(part_clone)
 
 	group:SetOwner(ent)
@@ -804,7 +797,6 @@ net.Receive("pac_hit_results", function(len)
 
 	local pos = self:GetWorldPosition()
 	local owner = self:GetPlayerOwner()
-	if not IsValid(owner) then return end
 
 	--START_BS_MOD
 	--Octo 3/32026
@@ -1034,10 +1026,6 @@ function PART:PreviewHitbox()
 		if not self.Preview then pac.RemoveHook(self.RenderingHook, "pace_draw_hitbox"..self.UniqueID) end
 		if not IsValid(self) then pac.RemoveHook(self.RenderingHook, "pace_draw_hitbox"..self.UniqueID) end
 		self:GetWorldPosition()
-
-		local ply = self:GetPlayerOwner()
-		if not IsValid(ply) then return end
-
 		if self.HitboxMode == "Box" then
 			local mins =  Vector(-self.Radius, -self.Radius, -self.Length)
 			local maxs = Vector(self.Radius, self.Radius, self.Length)
@@ -1059,8 +1047,7 @@ function PART:PreviewHitbox()
 			cam.PushModelMatrix( mat )
 			obj:Draw()
 			cam.PopModelMatrix()
-
-			if LocalPlayer() == ply then
+			if LocalPlayer() == self:GetPlayerOwner() then
 				if self.Radius ~= 0 then
 					local sides = self.Detail
 					if self.Detail < 1 then sides = 1 end
@@ -1135,7 +1122,7 @@ function PART:PreviewHitbox()
 			cam.PushModelMatrix( mat )
 			obj:Draw()
 			cam.PopModelMatrix()
-			if LocalPlayer() == ply then
+			if LocalPlayer() == self:GetPlayerOwner() then
 				if self.Radius ~= 0 then
 					local sides = self.Detail
 					if self.Detail < 1 then sides = 1 end
