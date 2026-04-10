@@ -1108,7 +1108,7 @@ PART.OldEvents = {
 
 	viewed_by_owner = {
 		operator_type = "none",
-		tutorial = "viewed_by_owner shows for only you. uninvert to show only to other players",
+		tutorial_explanation = "viewed_by_owner shows for only you. uninvert to show only to other players",
 		callback = function(self, ent)
 			return self:GetPlayerOwner() == pac.LocalPlayer
 		end,
@@ -1116,7 +1116,7 @@ PART.OldEvents = {
 
 	seen_by_player = {
 		operator_type = "none",
-		tutorial = "looked_at_by_player activates when a player is looking at you, determined by whether a box around you touches the direct eyeangle line",
+		tutorial_explanation = "looked_at_by_player activates when a player is looking at you, determined by whether a box around you touches the direct eyeangle line",
 		arguments = {{extra_radius = "number"}, {require_line_of_sight = "boolean"}},
 		userdata = {{editor_panel = "seen_by_player"}},
 		callback = function(self, ent, extra_radius, require_line_of_sight)
@@ -3004,7 +3004,7 @@ PART.OldEvents = {
 
 	is_no_draw = {
 		operator_type = "none",
-		tutorial = "activates when the current entity is flagged with nodraw",
+		tutorial_explanation = "activates when the current entity is flagged with nodraw",
 		callback = function(self, ent)
 			return ent:GetNoDraw()
 		end,
@@ -3012,7 +3012,7 @@ PART.OldEvents = {
 
 	viewer_steamid = {
 		operator_type = "string", preferred_operator = "equal",
-		tutorial = "activates when the local player has the steamID specified",
+		tutorial_explanation = "activates when the local player has the steamID specified",
 		arguments = {{find = "string"}, {include_owner = "boolean"}},
 		callback = function(self, ent, find, include_owner)
 			local owner = self:GetPlayerOwner()
@@ -3040,7 +3040,7 @@ PART.OldEvents = {
 
 	text = {
 		operator_type = "string",
-		tutorial = "compares a text part's text\nthis can be useful with the changed operator",
+		tutorial_explanation = "compares a text part's text\nthis can be useful with the changed operator",
 		arguments = {{uid = "string"}, {compare = "string"}, {truncated = "boolean"}},
 		callback = function(self, ent, uid, compare, truncated)
 			local part = self:GetOrFindCachedPart(uid)
