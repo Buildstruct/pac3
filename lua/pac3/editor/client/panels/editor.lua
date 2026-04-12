@@ -281,15 +281,15 @@ function PANEL:Init()
 	self.properties2_pnl_holder = properties2_pnl_holder
 
 	self:SetCookieName("pac3_editor")
-	self:SetPos(self:GetCookieNumber("x"), BAR_SIZE)
+	self:SetPos(self:GetCookieNumber("x", 0), BAR_SIZE)
 
 	if remember_width:GetBool() then
-		self.init_w = math.max(self:GetCookieNumber("width"), 200)
+		self.init_w = math.max(self:GetCookieNumber("width", 280), 200)
 	else
 		self.init_w = 280
 	end
 	if remember_divider:GetBool() then
-		pace.vertical_div_height = self:GetCookieNumber("y_divider")
+		pace.vertical_div_height = self:GetCookieNumber("y_divider", ScrH() / 1.4)
 	end
 
 	self:MakeBar()
