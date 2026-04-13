@@ -689,9 +689,11 @@ function pace.CreateSearchList(property, key, name, add_columns, get_list, get_c
 	local first = NULL
 
 	local hoverpreview_excluded = {
-		["VariableName"] = true,
-		["ToVariableName"] = true,
-		["FromVariableName"] = true,
+		["VariableName"] = true, --proxy will write irreversible changes early
+		["ToVariableName"] = true, --same as above
+		["FromVariableName"] = true, --same as above
+		["animation"] = true, --the one from custom animation frame event: ends up working wrong and reverting for some reason, there's a special onchange function that I think gets called twice
+		["Event"] = true, --doesn't integrate well with refreshing the dynamic properties, clears arguments early
 	}
 
 	local function build(find)
