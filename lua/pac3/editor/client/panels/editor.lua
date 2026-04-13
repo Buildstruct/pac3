@@ -35,7 +35,10 @@ function pace.RefreshZoomBounds(zoomslider)
 		else
 			zoomslider:SetMin(0)
 			zoomslider:SetMax(pace.max_fov)
-			timer.Simple(0, function() zoomslider:SetValue(math.Clamp(pace.ViewFOV, 0, pace.max_fov)) end)
+			timer.Simple(0, function()
+				if not IsValid(zoomslider) then return end
+				zoomslider:SetValue(math.Clamp(pace.ViewFOV, 0, pace.max_fov))
+			end)
 		end
 	end
 end
