@@ -1202,7 +1202,7 @@ PART.OldEvents = {
 					-- NPCs need a function filter since there isn't a clean and *performant* way to get all of them into a table.
 					filter = function(e)
 						if e == ent then return false end
-						if e:IsNPC() then return false end
+						if e:IsNPC() or e:IsNextBot() then return false end
 						if ignore_you and e == ownerPly then return false end
 						if ignore_viewer and e == localPly then return false end
 						if ignore_players and e:IsPlayer() then return false end
@@ -1232,7 +1232,7 @@ PART.OldEvents = {
 					filter = filter,
 				})
 
-				if npcs_and_players_only and (not res.Entity:IsPlayer() and not res.Entity:IsNPC()) then
+				if npcs_and_players_only and (not res.Entity:IsPlayer() and not res.Entity:IsNPC() and not res.Entity:IsNextBot()) then
 					return false
 				end
 
