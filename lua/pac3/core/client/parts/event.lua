@@ -1182,7 +1182,12 @@ PART.OldEvents = {
 		arguments = {{distance = "number"}, {compare = "number"}, {npcs_and_players_only = "boolean"}, {ignore_you = "boolean"}, {ignore_viewer = "boolean"}, {ignore_players = "boolean"}, {ignore_npcs = "boolean"}},
 		userdata = {
 			{default = 15, editor_panel = "ranger", ranger_property = "distance"},
-			{default = 5, editor_panel = "ranger", ranger_property = "compare"}
+			{default = 5, editor_panel = "ranger", ranger_property = "compare"},
+			{default = false},
+			{default = false},
+			{default = false},
+			{default = false},
+			{default = false},
 		},
 		callback = function(self, ent, distance, compare, npcs_and_players_only, ignore_you, ignore_viewer, ignore_players, ignore_npcs)
 
