@@ -270,9 +270,9 @@ function PART:SetProperty(key, val)
 		if self["Get" .. key](self) ~= val then
 			self["Set" .. key](self, val)
 		end
-	elseif self.GetDynamicProperties then
+	else
 		local info = self:GetDynamicProperties()[key]
-		if info and info then
+		if info then
 			if isnumber(val) then
 				val = math.Round(val, 7)
 			end
