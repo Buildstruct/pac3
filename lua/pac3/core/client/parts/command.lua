@@ -30,7 +30,7 @@ BUILDER:SetPropertyGroup("generic")
 		["Default: PacEvent bypasses OnHide when hiding"] = "Default",
 		["OnHide bypasses PacEvent when hiding"] = "OnHidePriority",
 		["Run Both "] = "AllowBoth"
-	}})
+	}, description = "What should happen when an OnHide call is run while you have both an OnHide string and a PacEvent preset present (CommandName non-empty).\nDefault bypasses the OnHide in favor of the PacEvent (legacy unintended behavior)\nOnHidePriority bypasses the PacEvent in favor of the OnHide string\nAllowBoth does both."})
 
 	--we might as well have a section for command events since they are so useful for logic, and often integrated with command parts
 	--There should be a more convenient front-end for pac_event stuff and to fix the issue where people want to randomize their command (e.g. random attacks) when cs lua isn't allowed on some servers.
