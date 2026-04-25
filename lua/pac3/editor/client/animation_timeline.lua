@@ -696,7 +696,7 @@ do
 			self:SetPos(0, ScrH()-self:GetTall())
 		end
 
-		if input.IsKeyDown(KEY_SPACE) then
+		if input.IsKeyDown(KEY_SPACE) and (vgui.GetKeyboardFocus() == nil) then
 			if not self.toggled then
 				self:Toggle()
 				self.toggled = true
