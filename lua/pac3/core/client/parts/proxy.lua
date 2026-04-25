@@ -2024,6 +2024,22 @@ function PART:OnRemove()
 	pac.RemoveHook("HUDPaint", "proxy" .. self.UniqueID)
 end
 
+
+local last_part
+pac.AddHook("pace_OnPartSelected", "warn_if_empty_proxy_variablename", function(part)
+	if part == last_part then return end
+	last_part = pace.current_part
+	self = last_part
+	if self.ClassName == "proxy" then
+		--foolproofing: scream at the user if they didn't set a variable name and there's no extra expressions ready to be used
+		if self.VariableName == "" and self.Extra1 == "" and self.Extra2 == "" and self.Extra3 == "" and self.Extra4 == "" and self.Extra5 == "" then
+			pace.FlashNotification("An edited proxy still has no variable name! The proxy won't work until it knows where to send the math!")
+			self:SetWarning("You forgot to set a variable name! The proxy won't work until it knows where to send the math!")
+		elseif self.VariableName ~= "" and not self.error and not self.errors_override then self:SetWarning() end
+	end
+	last_part = part
+end)
+
 function PART:OnThink(to_hide)
 	local playerowner = self:GetPlayerOwner() == pac.LocalPlayer
 	local part = self:GetTarget()
@@ -2034,20 +2050,6 @@ function PART:OnThink(to_hide)
 			return
 		end
 	end
-
-	if playerowner then
-		if pace and pace.IsActive() then
-			--foolproofing: scream at the user if they didn't set a variable name and there's no extra expressions ready to be used
-			if self == pace.current_part then self.touched = true end
-			if self ~= pace.current_part and self.VariableName == "" and self.touched and self.Extra1 == ""	and self.Extra2 == "" and self.Extra3 == "" and self.Extra4 == "" and self.Extra5 == "" then
-				self:AttachEditorPopup("You forgot to set a variable name! The proxy won't work until it knows where to send the math!", true)
-				pace.FlashNotification("An edited proxy still has no variable name! The proxy won't work until it knows where to send the math!")
-				self:SetWarning("You forgot to set a variable name! The proxy won't work until it knows where to send the math!")
-				self.touched = false
-			elseif self.VariableName ~= "" and not self.error and not self.errors_override then self:SetWarning() end
-		end
-	end
-	
 
 	self:CalcVelocity()
 
