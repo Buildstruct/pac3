@@ -1169,6 +1169,7 @@ if SERVER then
 						end
 						dmg_info:SetDamagePosition(ent:NearestPoint(pos))
 						dmg_info:SetReportedPosition(pos)
+						dmg_info:SetDamageType(damage_types[tbl.DamageType])
 						ent:TakeDamageInfo(dmg_info)
 						max_dmg = math.max(max_dmg, dmg_info:GetDamage())
 					end
@@ -1181,6 +1182,7 @@ if SERVER then
 						dmg_info2:SetReportedPosition(pos)
 						dmg_info2:SetDamage( math.min(ent:Health() - tbl.CriticalHealth, tbl.Damage))
 						dmg_info2:IsBulletDamage(tbl.Bullet)
+						dmg_info2:SetDamageType(damage_types[tbl.DamageType])
 						dmg_info2:SetDamageForce(Vector(0,0,0))
 
 						if IsValid(attacker) then dmg_info2:SetAttacker(attacker) end
