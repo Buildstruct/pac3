@@ -62,6 +62,8 @@ local enforce_distance = CreateConVar("pac_sv_combat_distance_enforced", 0, CLIE
 local ENFORCE_DISTANCE_SQR = math.pow(enforce_distance:GetInt(),2)
 cvars.AddChangeCallback("pac_sv_combat_distance_enforced", function() ENFORCE_DISTANCE_SQR = math.pow(enforce_distance:GetInt(),2) end)
 
+local pvs = CreateConVar("pac_sv_combat_pvs_broadcasts", 1, CLIENT and {FCVAR_REPLICATED} or {FCVAR_NOTIFY, FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Only send pac combat feedback broadcasts to PVS instead of broadcasts to all players")
+
 
 local global_combat_whitelisting = CreateConVar("pac_sv_combat_whitelisting", 0, CLIENT and {FCVAR_REPLICATED} or {FCVAR_NOTIFY, FCVAR_ARCHIVE, FCVAR_REPLICATED}, "How the server should decide which players are allowed to use the main PAC3 combat parts (lock, damagezone, force...).\n0:Everyone is allowed unless the parts are disabled serverwide\n1:No one is allowed until they get verified as trustworthy\tpac_sv_whitelist_combat <playername>\n\tpac_sv_blacklist_combat <playername>")
 local global_combat_prop_protection = CreateConVar("pac_sv_prop_protection", 0, CLIENT and {FCVAR_REPLICATED} or {FCVAR_NOTIFY, FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Whether players owned (created) entities (physics props and gmod contraption entities) will be considered in the consent calculations, protecting them. Without this cvar, only the player is protected.")
@@ -826,7 +828,11 @@ if SERVER then
 				net.WriteUInt(value,24)
 			end
 		end
-		net.Broadcast()
+		if pvs:GetBool() then
+			net.SendPVS(target:GetPos())
+		else
+			net.Broadcast()
+		end
 	end
 
 	--healthbars work with a 2 levels-deep table
@@ -1885,7 +1891,11 @@ if SERVER then
 			net.Start("pac_send_ragdoll")
 			net.WriteUInt(ent:EntIndex(), 12)
 			net.WriteEntity(rag)
-			net.Broadcast()
+			if pvs:GetBool() then
+				net.SendPVS(rag:GetPos())
+			else
+				net.Broadcast()
+			end
 		end)
 
 		net.Receive("pac_request_ragdoll_sends", function(len, ply)
@@ -2142,7 +2152,11 @@ if SERVER then
 				local _,bits_after_kill = net.BytesWritten()
 				--print("table is length " .. bits_after_kill - bits_after_hit .. " for " .. table.Count(successful_kill_ents) .. " ents killed, or about " .. ((bits_after_kill - bits_after_hit) / table.Count(successful_kill_ents) - 16) .. " per ent")
 			end
-			net.Broadcast()
+			if pvs:GetBool() then
+				net.SendPVS(pos)
+			else
+				net.Broadcast()
+			end
 		end)
 
 	end
@@ -2359,7 +2373,11 @@ if SERVER then
 					net.WriteEntity(targ_ent)
 					net.WriteBool(did_grab)
 					net.WriteString(lockpart_UID)
-					net.Broadcast()
+					if pvs:GetBool() then
+						net.SendPVS(pos)
+					else
+						net.Broadcast()
+					end
 
 					if targ_ent:IsPlayer() then
 						net.Start("pac_notify_grabbed_player")
