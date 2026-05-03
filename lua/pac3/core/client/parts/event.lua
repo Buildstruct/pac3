@@ -2402,8 +2402,9 @@ PART.OldEvents = {
 		callback = function(self, ent)
 			if not ent:IsPlayer() then return false end
 			local vehicle = ent:GetVehicle()
-			if ent.GetSitting then return ent:GetSitting() end --sit anywhere script
-			return IsValid(vehicle) and vehicle:GetModel() ~= "models/vehicles/prisoner_pod_inner.mdl" --no prison pod!
+			local fallback = IsValid(vehicle) and (vehicle:GetModel() ~= "models/vehicles/prisoner_pod_inner.mdl") --but no prison pod!
+			if ent.GetSitting then return ent:GetSitting() or fallback end --sit anywhere script
+			return fallback
 		end
 	},
 
