@@ -2951,7 +2951,7 @@ do -- vector
 							end
 							
 							local color = Color(0,0,0)
-							if r + g + a < 400 then
+							if r + g + b < 400 then
 								color = Color(255,255,255)
 							end
 
