@@ -493,7 +493,7 @@ local function populate_bookmarks(menu, mode, self)
 		end
 
 		local function create_material(path, shader)
-			local newmaterial = pac.CreatePart(shader, pace.current_part)
+			local newmaterial = pace.current_part:CreatePart(shader)
 			if self.CurrentKey == "SpritePath" then
 				newmaterial:SetParent(pace.current_part:GetParent())
 				newmaterial:SetDrawOrder(pace.current_part:GetDrawOrder() - 1)
