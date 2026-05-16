@@ -418,7 +418,7 @@ local function populate_bookmarks(menu, mode, self)
 					local mat_no_ext = string.StripExtension(string.sub(file,11,#file)) --"materials/"
 					local option = menu3:AddOption(mat_no_ext, function()
 						self:SetValue(mat_no_ext)
-						pace.current_part:SetProperty(self.CurrentKey, str)
+						pace.current_part:SetProperty(self.CurrentKey, mat_no_ext)
 					end) option:SetMaterial(mat_no_ext)
 					if preview_hovers:GetBool() then install_generic_preview_hover(option, self.CurrentKey, mat_no_ext) end
 				end
@@ -476,10 +476,62 @@ local function populate_bookmarks(menu, mode, self)
 		end
 
 		if self.CurrentKey == "Material" and pace.current_part.ClassName == "particles" then
-			pnl:SetTooltip("Appropriate shaders for particles are UnlitGeneric materials.\nOOtherwise, they should usually be additive or use VertexAlpha")
+			pnl:SetTooltip("Appropriate shaders for particles are UnlitGeneric materials.\nOtherwise, they should usually be additive or use VertexAlpha")
 		elseif self.CurrentKey == "SpritePath" then
-			pnl:SetTooltip("Appropriate shaders for sprites are UnlitGeneric materials.\nOOtherwise, they should usually be additive or use VertexAlpha")
+			pnl:SetTooltip("Appropriate shaders for sprites are UnlitGeneric materials.\nOtherwise, they should usually be additive or use VertexAlpha")
 		end
+
+		local part_material = pace.current_part:GetProperty(self.CurrentKey)
+		local mat_name = part_material:match(".+/(.+)") or ""
+
+		mat_name = mat_name .. "_" .. string.sub(pace.current_part.UniqueID,1,6)
+		mat_name = string.Replace(mat_name, " ", "")
+		local material_class = "material_2d"
+		-- models will use vertexlitgeneric
+		if pace.current_part.is_model_part or pace.current_part.is_entity_part then
+			material_class = "material_3d"
+		end
+
+		local function create_material(path, shader)
+			local newmaterial = pac.CreatePart(shader, pace.current_part)
+			if self.CurrentKey == "SpritePath" then
+				newmaterial:SetParent(pace.current_part:GetParent())
+				newmaterial:SetDrawOrder(pace.current_part:GetDrawOrder() - 1)
+			end
+			newmaterial:SetName(mat_name)
+			newmaterial:SetProperty("LoadVmt", path)
+			pace.current_part:SetProperty(self.CurrentKey, mat_name)
+
+			return newmaterial
+		end
+
+		local menu2, pnl = menu:AddSubMenu("Edit Material (will be named " .. mat_name .. ")", function()
+			create_material(part_material, material_class)
+		end)
+		pnl:SetImage("icon16/paintcan.png")
+		pnl:SetTooltip(material_class)
+
+		--duplicate in case people don't know they can click the parent submenu
+		menu2:AddOption("simple load VMT (" .. material_class .. ")",  function()
+			create_material(part_material, material_class)
+		end):SetImage("icon16/paintcan.png")
+
+		local menu3, pnl2 = menu2:AddSubMenu("choose specific shader...")
+		pnl2:SetImage("icon16/chart_organisation.png")
+		menu3:AddOption("material_3d", function() create_material(part_material, "material_3d") end):SetImage("icon16/paintcan.png")
+		menu3:AddOption("material_2d", function() create_material(part_material, "material_2d") end):SetImage("icon16/paintcan.png")
+		menu3:AddOption("material_refract", function() create_material(part_material, "material_refract") end):SetImage("icon16/paintcan.png")
+		menu3:AddOption("material_eyerefract", function() create_material(part_material, "material_eyerefract") end):SetImage("icon16/paintcan.png")
+
+		menu2:AddOption("Make transparent (vertex alpha) (for transparent textures)", function()
+			local newmaterial = create_material(part_material, material_class)
+			newmaterial:Setvertexalpha(true)
+		end):SetImage("icon16/paintcan.png")
+
+		menu2:AddOption("Make transparent (additive) (for black backgrounds)", function()
+			local newmaterial = create_material(part_material, material_class)
+			newmaterial:Setadditive(true)
+		end):SetImage("icon16/paintcan.png")
 	elseif mode == "sound" then
 		pace.bookmarked_ressources = pace.bookmarked_ressources or {}
 		if not pace.bookmarked_ressources["sound"] then
@@ -2387,51 +2439,6 @@ do -- base editable
 
 		if self.udata.editor_panel == "material" then
 			populate_bookmarks(menu, "materials", self)
-
-			local part_material = pace.current_part:GetProperty(self.CurrentKey)
-			local mat_name = part_material:match(".+/(.+)") or ""
-			mat_name = mat_name .. "_" .. string.sub(pace.current_part.UniqueID,1,6)
-			mat_name = string.Replace(mat_name, " ", "")
-			local menu2, pnl = menu:AddSubMenu("Edit Material (will be named " .. mat_name .. ")", function()
-				local newmaterial = pac.CreatePart("material_2d")
-				if self.CurrentKey == "SpritePath" then
-					newmaterial:SetParent(pace.current_part:GetParent())
-					newmaterial:SetDrawOrder(pace.current_part:GetDrawOrder() - 1)
-				else
-					newmaterial:SetParent(pace.current_part)
-				end
-				newmaterial:SetName(mat_name)
-				newmaterial:SetProperty("LoadVmt", part_material)
-				pace.current_part:SetProperty(self.CurrentKey, mat_name)
-			end)
-			pnl:SetImage("icon16/paintcan.png")
-
-			menu2:AddOption("Make transparent (vertex alpha) (for transparent textures)", function()
-				local newmaterial = pac.CreatePart("material_2d")
-				if self.CurrentKey == "SpritePath" then
-					newmaterial:SetParent(pace.current_part:GetParent())
-					newmaterial:SetDrawOrder(pace.current_part:GetDrawOrder() - 1)
-				else
-					newmaterial:SetParent(pace.current_part)
-				end
-				newmaterial:SetName(mat_name)
-				newmaterial:SetProperty("LoadVmt", part_material)
-				pace.current_part:SetProperty(self.CurrentKey, mat_name)
-				newmaterial:Setvertexalpha(true)
-			end):SetImage("icon16/paintcan.png")
-			menu2:AddOption("Make transparent (additive) (for black backgrounds)", function()
-				local newmaterial = pac.CreatePart("material_2d")
-				if self.CurrentKey == "SpritePath" then
-					newmaterial:SetParent(pace.current_part:GetParent())
-					newmaterial:SetDrawOrder(pace.current_part:GetDrawOrder() - 1)
-				else
-					newmaterial:SetParent(pace.current_part)
-				end
-				newmaterial:SetName(mat_name)
-				newmaterial:SetProperty("LoadVmt", part_material)
-				pace.current_part:SetProperty(self.CurrentKey, mat_name)
-				newmaterial:Setadditive(true)
-			end):SetImage("icon16/paintcan.png")
 		end
 
 		if string.find(pace.current_part.ClassName, "sound") then
