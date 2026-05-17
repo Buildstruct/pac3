@@ -4175,6 +4175,9 @@ net.Receive("pac_event_set_sequence", function(len)
 	local ply = net.ReadEntity()
 	local event = net.ReadString()
 	local num = net.ReadUInt(8)
+
+	if not ply:IsValid() then return end
+
 	ply.pac_command_events = ply.pac_command_events or {}
 	ply.pac_command_event_sequencebases = ply.pac_command_event_sequencebases or {}
 	ply.pac_command_event_sequencebases[event] = ply.pac_command_event_sequencebases[event] or {name = event}
