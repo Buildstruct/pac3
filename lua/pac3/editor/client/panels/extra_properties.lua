@@ -648,31 +648,52 @@ end
 
 
 local calcdrag_remove_pnl = CreateClientConVar("pac_luapad_calcdrag_removal", "1", true, false, "whether dragging view should remove the luapad")
+local fontsize_cvar = CreateClientConVar("pac_luapad_fontsize", 16, true, false, "font size for pac3 code panel")
 
 local lua_editor_txt = ""
 local lua_editor_previous_dimensions
-local lua_editor_fontsize = 16
+local lua_editor_fontsize = fontsize_cvar:GetInt()
 local function install_fontsize_buttons(frame, editor, add_execute, key)
 	frame.ignore_saferemovespecialpanel = not calcdrag_remove_pnl:GetBool()
 
 	local btn_fontplus = vgui.Create("DButton", frame) btn_fontplus:SetSize(20, 18) btn_fontplus:SetText("+")
 	local btn_fontminus = vgui.Create("DButton", frame) btn_fontminus:SetSize(20, 18) btn_fontminus:SetText("-")
+	local btn_fontedit = vgui.Create("DButton", frame) btn_fontedit:SetSize(60, 18) btn_fontedit:SetText("fix font") btn_fontedit:SetIcon("icon16/font.png")
+
+	--font edit: font type
+	local recommended_fonts = {
+		"Windows: Noto Mono, Liberation Mono, Fira Mono, Consolas",
+		"<needs confirmation>",
+		"MacOS: Menlo",
+		"Linux: Noto Sans Mono, Liberation Mono",
+		"Cross-Platform: Noto Mono"
+	}
+	btn_fontedit:SetTooltip("If the text breaks up in chunks, it's because the used font isn't monospace. By default it used to be roboto mono. \nBut it may be missing so it was changed to Noto Mono.\nThe main issue with fonts is that the existence of fonts is system-specific.\n\nWe may suggest:\n"..table.concat(recommended_fonts, "\n"))
+	function btn_fontedit:DoClick()
+		Derma_StringRequest("luapad font", "pick a new font base\nNeeds to be monospace!", GetConVar("pac_luapad_font"):GetString(), function(str)
+			GetConVar("pac_luapad_font"):SetString(str)
+		end)
+	end
+
+	--font edit: font size
+	local increment = 2
 	function btn_fontplus:DoClick()
-		lua_editor_fontsize = math.Clamp(lua_editor_fontsize + 1, 6, 80)
-		surface.CreateFont("LuapadEditor", {font = "roboto mono", size = lua_editor_fontsize, weight = 400 } )
-		surface.CreateFont("LuapadEditor_Bold", {font = "roboto mono", size = lua_editor_fontsize, weight = 800})
-		surface.SetFont("LuapadEditor");
-		editor.FontWidth, editor.FontHeight = surface.GetTextSize(" ")
+		increment = input.IsControlDown() and 6 or 2
+		lua_editor_fontsize = math.Clamp(lua_editor_fontsize + increment, 6, 80)
+		fontsize_cvar:SetInt(lua_editor_fontsize)
+		pace.LuapadRefreshFonts()
+		pace.FlashNotification("luapad font size changed to " .. lua_editor_fontsize, 3)
 	end
 	function btn_fontminus:DoClick()
-		lua_editor_fontsize = math.Clamp(lua_editor_fontsize - 1, 6, 80)
-		surface.CreateFont("LuapadEditor", {font = "roboto mono", size = lua_editor_fontsize, weight = 400 } )
-		surface.CreateFont("LuapadEditor_Bold", {font = "roboto mono", size = lua_editor_fontsize, weight = 800})
-		surface.SetFont("LuapadEditor");
-		editor.FontWidth, editor.FontHeight = surface.GetTextSize(" ")
+		increment = input.IsControlDown() and 6 or 2
+		lua_editor_fontsize = math.Clamp(lua_editor_fontsize - increment, 6, 80)
+		fontsize_cvar:SetInt(lua_editor_fontsize)
+		pace.LuapadRefreshFonts()
+		pace.FlashNotification("luapad font size changed to " .. lua_editor_fontsize, 3)
 	end
 
 
+	--window management: keep window size / position
 	local btn_remember_dimensions = vgui.Create("DButton", frame) btn_remember_dimensions:SetSize(18, 18) btn_remember_dimensions:SetImage("icon16/computer_link.png")
 	btn_remember_dimensions:SetTooltip("Remember winbdow size") btn_remember_dimensions:SetY(3)
 	function btn_remember_dimensions:DoClick()
@@ -694,6 +715,7 @@ local function install_fontsize_buttons(frame, editor, add_execute, key)
 		btn_remember_dimensions:SetImage("icon16/computer_delete.png")
 	end
 
+	--window management: drag view closes the window to move on to normal looking-around activities
 	local btn_calcdrag_remove = vgui.Create("DButton", frame) btn_calcdrag_remove:SetSize(18, 18) btn_calcdrag_remove:SetImage("icon16/application_delete.png")
 	btn_calcdrag_remove:SetTooltip("Close window if dragging main view") btn_calcdrag_remove:SetY(3)
 	function btn_calcdrag_remove:DoClick()
@@ -710,6 +732,7 @@ local function install_fontsize_buttons(frame, editor, add_execute, key)
 	local perflayout = frame.PerformLayout
 	btn_fontplus:SetY(3)
 	btn_fontminus:SetY(3)
+	btn_fontedit:SetY(3)
 
 	if add_execute then
 		local btn_run = vgui.Create("DButton", frame) btn_run:SetSize(50, 18) btn_run:SetY(3)
@@ -726,7 +749,7 @@ local function install_fontsize_buttons(frame, editor, add_execute, key)
 				timer.Simple(0.2, function() pace.current_part:Execute(pace.current_part[key]) end)
 			else
 				pace.current_part:Execute()
-			end		
+			end
 		end
 		function frame:PerformLayout()
 			if lua_editor_previous_dimensions then
@@ -743,6 +766,7 @@ local function install_fontsize_buttons(frame, editor, add_execute, key)
 			btn_run:SetX(self:GetWide() - 190 + 4)
 			btn_fontplus:SetX(self:GetWide() - 120 + 4)
 			btn_fontminus:SetX(self:GetWide() - 140 + 4)
+			btn_fontedit:SetX(self:GetWide() - 240 + 2)
 			perflayout(self)
 		end
 		frame:RequestFocus()
@@ -761,10 +785,11 @@ local function install_fontsize_buttons(frame, editor, add_execute, key)
 			btn_remember_dimensions:SetX(self:GetWide() - 160 + 4)
 			btn_fontplus:SetX(self:GetWide() - 120 + 4)
 			btn_fontminus:SetX(self:GetWide() - 140 + 4)
+			btn_fontedit:SetX(self:GetWide() - 240 + 2)
 			perflayout(self)
 		end
 	end
-	
+
 end
 
 do -- script
@@ -1294,7 +1319,7 @@ do -- script proxy
 				y = math.Clamp(y,prop_y,ScrH() - self:GetTall())
 				surface.SetFont(pnl:GetFont())
 				local w2 = surface.GetTextSize(str .. " " .. self.CurrentKey .. " " .. str)
-				
+
 				surface.SetDrawColor(col)
 				surface.DrawRect(x - w2, y, w2, pnl:GetTall())
 				surface.SetTextColor(self:GetSkin().Colours.Category.Line.Text)
