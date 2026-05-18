@@ -648,12 +648,13 @@ end
 
 
 local calcdrag_remove_pnl = CreateClientConVar("pac_luapad_calcdrag_removal", "1", true, false, "whether dragging view should remove the luapad")
+local centered_mode = CreateClientConVar("pac_luapad_centered_mode", "0", true, false, "Override the default size and positions of the pac3 code panel to be a conventional centered window that's taller and right in the middle of the screen")
 local fontsize_cvar = CreateClientConVar("pac_luapad_fontsize", 16, true, false, "font size for pac3 code panel")
 
 local lua_editor_txt = ""
 local lua_editor_previous_dimensions
 local lua_editor_fontsize = fontsize_cvar:GetInt()
-local function install_fontsize_buttons(frame, editor, add_execute, key)
+local function install_fontsize_buttons(frame, editor, add_execute, key, property_pnl)
 	frame.ignore_saferemovespecialpanel = not calcdrag_remove_pnl:GetBool()
 
 	local btn_fontplus = vgui.Create("DButton", frame) btn_fontplus:SetSize(20, 18) btn_fontplus:SetText("+")
@@ -692,6 +693,36 @@ local function install_fontsize_buttons(frame, editor, add_execute, key)
 		pace.FlashNotification("luapad font size changed to " .. lua_editor_fontsize, 3)
 	end
 
+	--window management: centered mode
+	local btn_centered_mode = vgui.Create("DButton", frame) btn_centered_mode:SetSize(18, 18) btn_centered_mode:SetImage("icon16/shape_move_forwards.png")
+	btn_centered_mode:SetTooltip("Centered mode") btn_centered_mode:SetY(3)
+	local function move(b)
+		if b then
+			frame:SetSize(ScrW() / 1.5, ScrH() / 2)
+			frame:Center()
+		else
+			if lua_editor_previous_dimensions ~= nil then
+				frame:SetPos(lua_editor_previous_dimensions.x,lua_editor_previous_dimensions.y)
+				frame:SetSize(lua_editor_previous_dimensions.wide,lua_editor_previous_dimensions.tall)
+			else
+				if pace.Editor:IsLeft() then
+					frame:SetSize(ScrW() - pace.Editor:GetX() - pace.Editor:GetWide(),200)
+					frame:SetPos(pace.Editor:GetWide() + pace.Editor:GetX(), select(2, property_pnl:LocalToScreen()))
+				else
+					frame:SetSize(pace.Editor:GetX(),200)
+					frame:SetPos(0, select(2, property_pnl:LocalToScreen()))
+				end
+			end
+		end
+	end
+	function btn_centered_mode:DoClick()
+		local b = centered_mode:GetBool()
+		centered_mode:SetBool(not b)
+		move(not b)
+	end
+
+	--position it initially
+	move(centered_mode:GetBool())
 
 	--window management: keep window size / position
 	local btn_remember_dimensions = vgui.Create("DButton", frame) btn_remember_dimensions:SetSize(18, 18) btn_remember_dimensions:SetImage("icon16/computer_link.png")
@@ -733,6 +764,7 @@ local function install_fontsize_buttons(frame, editor, add_execute, key)
 	btn_fontplus:SetY(3)
 	btn_fontminus:SetY(3)
 	btn_fontedit:SetY(3)
+	btn_centered_mode:SetY(3)
 
 	if add_execute then
 		local btn_run = vgui.Create("DButton", frame) btn_run:SetSize(50, 18) btn_run:SetY(3)
@@ -766,7 +798,8 @@ local function install_fontsize_buttons(frame, editor, add_execute, key)
 			btn_run:SetX(self:GetWide() - 190 + 4)
 			btn_fontplus:SetX(self:GetWide() - 120 + 4)
 			btn_fontminus:SetX(self:GetWide() - 140 + 4)
-			btn_fontedit:SetX(self:GetWide() - 240 + 2)
+			btn_fontedit:SetX(self:GetWide() - 310 + 2)
+			btn_centered_mode:SetX(self:GetWide() - 250 + 4)
 			perflayout(self)
 		end
 		frame:RequestFocus()
@@ -785,7 +818,8 @@ local function install_fontsize_buttons(frame, editor, add_execute, key)
 			btn_remember_dimensions:SetX(self:GetWide() - 160 + 4)
 			btn_fontplus:SetX(self:GetWide() - 120 + 4)
 			btn_fontminus:SetX(self:GetWide() - 140 + 4)
-			btn_fontedit:SetX(self:GetWide() - 240 + 2)
+			btn_fontedit:SetX(self:GetWide() - 260 + 2)
+			btn_centered_mode:SetX(self:GetWide() - 200 + 4)
 			perflayout(self)
 		end
 	end
@@ -975,19 +1009,6 @@ do -- script command
 		install_fontsize_buttons(frame, editor, true, self.CurrentKey)
 		editor:Dock(FILL)
 
-		if lua_editor_previous_dimensions ~= nil then
-			frame:SetPos(lua_editor_previous_dimensions.x,lua_editor_previous_dimensions.y)
-			frame:SetSize(lua_editor_previous_dimensions.wide,lua_editor_previous_dimensions.tall)
-		else
-			if pace.Editor:IsLeft() then
-				frame:SetSize(ScrW() - pace.Editor:GetX() - pace.Editor:GetWide(),200)
-				frame:SetPos(pace.Editor:GetWide() + pace.Editor:GetX(), select(2, self:LocalToScreen()))
-			else
-				frame:SetSize(pace.Editor:GetX(),200)
-				frame:SetPos(0, select(2, self:LocalToScreen()))
-			end
-		end
-
 		editor:SetText(part[self.CurrentKey])
 		local pnl = self
 		if pnl.CurrentKey == "String" then
@@ -1156,20 +1177,8 @@ do -- script proxy
 		}
 		editor.keynumber = slots[self.CurrentKey]
 		frame.luapad = editor
-		install_fontsize_buttons(frame, editor)
+		install_fontsize_buttons(frame, editor, false, nil, self)
 		editor:Dock(FILL)
-		if lua_editor_previous_dimensions ~= nil then
-			frame:SetPos(lua_editor_previous_dimensions.x,lua_editor_previous_dimensions.y)
-			frame:SetSize(lua_editor_previous_dimensions.wide,lua_editor_previous_dimensions.tall)
-		else
-			if pace.Editor:IsLeft() then
-				frame:SetSize(ScrW() - pace.Editor:GetX() - pace.Editor:GetWide(),200)
-				frame:SetPos(pace.Editor:GetWide() + pace.Editor:GetX(), select(2, self:LocalToScreen()))
-			else
-				frame:SetSize(pace.Editor:GetX(),200)
-				frame:SetPos(0, select(2, self:LocalToScreen()))
-			end
-		end
 
 		editor:SetText(part["Get"..key](part))
 		editor.OnTextChanged = function(self)
