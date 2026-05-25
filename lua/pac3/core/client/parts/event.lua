@@ -270,9 +270,9 @@ function PART:SetProperty(key, val)
 		if self["Get" .. key](self) ~= val then
 			self["Set" .. key](self, val)
 		end
-	elseif self.GetDynamicProperties then
+	else
 		local info = self:GetDynamicProperties()[key]
-		if info and info then
+		if info then
 			if isnumber(val) then
 				val = math.Round(val, 7)
 			end
@@ -1108,7 +1108,7 @@ PART.OldEvents = {
 
 	viewed_by_owner = {
 		operator_type = "none",
-		tutorial = "viewed_by_owner shows for only you. uninvert to show only to other players",
+		tutorial_explanation = "viewed_by_owner shows for only you. uninvert to show only to other players",
 		callback = function(self, ent)
 			return self:GetPlayerOwner() == pac.LocalPlayer
 		end,
@@ -1116,7 +1116,7 @@ PART.OldEvents = {
 
 	seen_by_player = {
 		operator_type = "none",
-		tutorial = "looked_at_by_player activates when a player is looking at you, determined by whether a box around you touches the direct eyeangle line",
+		tutorial_explanation = "looked_at_by_player activates when a player is looking at you, determined by whether a box around you touches the direct eyeangle line",
 		arguments = {{extra_radius = "number"}, {require_line_of_sight = "boolean"}},
 		userdata = {{editor_panel = "seen_by_player"}},
 		callback = function(self, ent, extra_radius, require_line_of_sight)
@@ -1183,12 +1183,17 @@ PART.OldEvents = {
 	ranger = {
 		operator_type = "number", preferred_operator = "below",
 		tutorial_explanation = "ranger looks in a line to see if something is in front (red arrow) of its host's (parent) model;\ndetected things could be found before(below) or beyond(above) the distance defined in compare;\nthe event will only look as far as the distance defined in distance",
-		arguments = {{distance = "number"}, {compare = "number"}, {npcs_and_players_only = "boolean"}},
+		arguments = {{distance = "number"}, {compare = "number"}, {npcs_and_players_only = "boolean"}, {ignore_you = "boolean"}, {ignore_viewer = "boolean"}, {ignore_players = "boolean"}, {ignore_npcs = "boolean"}},
 		userdata = {
 			{default = 15, editor_panel = "ranger", ranger_property = "distance"},
-			{default = 5, editor_panel = "ranger", ranger_property = "compare"}
+			{default = 5, editor_panel = "ranger", ranger_property = "compare"},
+			{default = false},
+			{default = false},
+			{default = false},
+			{default = false},
+			{default = false},
 		},
-		callback = function(self, ent, distance, compare, npcs_and_players_only)
+		callback = function(self, ent, distance, compare, npcs_and_players_only, ignore_you, ignore_viewer, ignore_players, ignore_npcs)
 
 			local parent = self:GetParentEx()
 
@@ -1197,13 +1202,46 @@ PART.OldEvents = {
 				distance = distance or 1
 				compare = compare or 0
 
+				local filter = ent
+
+				if ignore_npcs then
+					local ownerPly = self:GetPlayerOwner() -- Has to traverse root, slow.
+					local localPly = LocalPlayer()
+
+					-- NPCs need a function filter since there isn't a clean and *performant* way to get all of them into a table.
+					filter = function(e)
+						if e == ent then return false end
+						if e:IsNPC() or e:IsNextBot() then return false end
+						if ignore_you and e == ownerPly then return false end
+						if ignore_viewer and e == localPly then return false end
+						if ignore_players and e:IsPlayer() then return false end
+
+						return true
+					end
+				elseif ignore_you or ignore_viewer or ignore_players then
+					-- Make a table for other ignores, more performant than a function.
+					filter = {ent}
+
+					if ignore_players then
+						table.Add(filter, player.GetAll())
+					else -- Other options are redundant if ignoring players.
+						if ignore_you then
+							table.insert(filter, self:GetPlayerOwner())
+						end
+
+						if ignore_viewer then
+							table.insert(filter, LocalPlayer())
+						end
+					end
+				end
+
 				local res = util.TraceLine({
 					start = parent:GetWorldPosition(),
 					endpos = parent:GetWorldPosition() + parent:GetWorldAngles():Forward() * distance,
-					filter = ent,
+					filter = filter,
 				})
 
-				if npcs_and_players_only and (not res.Entity:IsPlayer() and not res.Entity:IsNPC()) then
+				if npcs_and_players_only and (not res.Entity:IsPlayer() and not res.Entity:IsNPC() and not res.Entity:IsNextBot()) then
 					return false
 				end
 
@@ -2402,8 +2440,9 @@ PART.OldEvents = {
 		callback = function(self, ent)
 			if not ent:IsPlayer() then return false end
 			local vehicle = ent:GetVehicle()
-			if ent.GetSitting then return ent:GetSitting() end --sit anywhere script
-			return IsValid(vehicle) and vehicle:GetModel() ~= "models/vehicles/prisoner_pod_inner.mdl" --no prison pod!
+			local fallback = IsValid(vehicle) and (vehicle:GetModel() ~= "models/vehicles/prisoner_pod_inner.mdl") --but no prison pod!
+			if ent.GetSitting then return ent:GetSitting() or fallback end --sit anywhere script
+			return fallback
 		end
 	},
 
@@ -3004,7 +3043,7 @@ PART.OldEvents = {
 
 	is_no_draw = {
 		operator_type = "none",
-		tutorial = "activates when the current entity is flagged with nodraw",
+		tutorial_explanation = "activates when the current entity is flagged with nodraw",
 		callback = function(self, ent)
 			return ent:GetNoDraw()
 		end,
@@ -3012,7 +3051,7 @@ PART.OldEvents = {
 
 	viewer_steamid = {
 		operator_type = "string", preferred_operator = "equal",
-		tutorial = "activates when the local player has the steamID specified",
+		tutorial_explanation = "activates when the local player has the steamID specified",
 		arguments = {{find = "string"}, {include_owner = "boolean"}},
 		callback = function(self, ent, find, include_owner)
 			local owner = self:GetPlayerOwner()
@@ -3040,7 +3079,7 @@ PART.OldEvents = {
 
 	text = {
 		operator_type = "string",
-		tutorial = "compares a text part's text\nthis can be useful with the changed operator",
+		tutorial_explanation = "compares a text part's text\nthis can be useful with the changed operator",
 		arguments = {{uid = "string"}, {compare = "string"}, {truncated = "boolean"}},
 		callback = function(self, ent, uid, compare, truncated)
 			local part = self:GetOrFindCachedPart(uid)
@@ -4136,6 +4175,9 @@ net.Receive("pac_event_set_sequence", function(len)
 	local ply = net.ReadEntity()
 	local event = net.ReadString()
 	local num = net.ReadUInt(8)
+
+	if not ply:IsValid() then return end
+
 	ply.pac_command_events = ply.pac_command_events or {}
 	ply.pac_command_event_sequencebases = ply.pac_command_event_sequencebases or {}
 	ply.pac_command_event_sequencebases[event] = ply.pac_command_event_sequencebases[event] or {name = event}

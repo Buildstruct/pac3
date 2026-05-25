@@ -74,6 +74,12 @@ end)
 
 pace.SpawnlistBrowser = NULL
 
+if pace.SpawnlistBrowser_panels then
+	if pace.SpawnlistBrowser_panels[1]:IsValid() then pace.SpawnlistBrowser_panels[1]:Remove() end
+	if pace.SpawnlistBrowser_panels[2]:IsValid() then pace.SpawnlistBrowser_panels[2]:Remove() end
+end
+pace.SpawnlistBrowser_panels = {NULL, NULL}
+
 function pace.ClientOptionsMenu(self)
 	if not IsValid(self) then return end
 
@@ -83,7 +89,12 @@ function pace.ClientOptionsMenu(self)
 	self:Button(L"wear on server", "pac_wear_parts" )
 	self:CheckBox(L"raw file sizes", "pac_browser_display_raw_file_size"):SetTooltip("fixes sorting")
 
-	local browser = self:AddControl("pace_browser", {})
+	local holder_panel = vgui.Create("DPanel")
+	self:AddPanel(holder_panel)
+	holder_panel:SetSize(400,480)
+	pace.SpawnlistBrowser_panels[1] = holder_panel
+	local browser = pace.CreatePanel("browser", holder_panel) --self:AddControl("pace_browser", {})
+	pace.SpawnlistBrowser_panels[2] = browser
 
 	browser.OnLoad = function(node)
 		pace.LoadParts(node.FileName, true)
@@ -95,7 +106,8 @@ function pace.ClientOptionsMenu(self)
 		browser:SetDir("")
 	end
 
-	browser:SetSize(400,480)
+	--browser:SetSize(400,480)
+	browser:Dock(FILL)
 
 	pace.SpawnlistBrowser = browser
 
@@ -145,11 +157,11 @@ end
 
 local default = "0"
 if game.SinglePlayer() then default = "1" end
-CreateConVar("pac_sv_nearest_life", default, {FCVAR_REPLICATED}, "Enables nearest_life aimparts and bones, abusable for aimbot-type setups (which would already be possible with CS lua)")
-CreateConVar("pac_sv_nearest_life_allow_sampling_from_parts", "1", {FCVAR_REPLICATED}, "Restricts nearest_life aimparts and bones search to the player itself to prevent sampling from arbitrary positions\n0=sampling can only start from the player itself")
-CreateConVar("pac_sv_nearest_life_allow_bones", default, {FCVAR_REPLICATED}, "Restricts nearest_life bones, preventing placement on external entities' position")
-CreateConVar("pac_sv_nearest_life_allow_targeting_players", "1", {FCVAR_REPLICATED}, "Restricts nearest_life aimparts and bones to forbid targeting players\n0=no target players")
-CreateConVar("pac_sv_nearest_life_max_distance", "5000", {FCVAR_REPLICATED}, "Restricts the radius for nearest_life aimparts and bones")
+CreateConVar("pac_sv_nearest_life", default, {FCVAR_ARCHIVE, FCVAR_REPLICATED, FCVAR_NOTIFY}, "Enables nearest_life aimparts and bones, abusable for aimbot-type setups (which would already be possible with CS lua)")
+CreateConVar("pac_sv_nearest_life_allow_sampling_from_parts", "1", {FCVAR_ARCHIVE, FCVAR_REPLICATED, FCVAR_NOTIFY}, "Restricts nearest_life aimparts and bones search to the player itself to prevent sampling from arbitrary positions\n0=sampling can only start from the player itself")
+CreateConVar("pac_sv_nearest_life_allow_bones", default, {FCVAR_ARCHIVE, FCVAR_REPLICATED, FCVAR_NOTIFY}, "Restricts nearest_life bones, preventing placement on external entities' position")
+CreateConVar("pac_sv_nearest_life_allow_targeting_players", "1", {FCVAR_ARCHIVE, FCVAR_REPLICATED, FCVAR_NOTIFY}, "Restricts nearest_life aimparts and bones to forbid targeting players\n0=no target players")
+CreateConVar("pac_sv_nearest_life_max_distance", "5000", {FCVAR_ARCHIVE, FCVAR_REPLICATED, FCVAR_NOTIFY}, "Restricts the radius for nearest_life aimparts and bones")
 CreateConVar("pac_submit_spam", "1", {FCVAR_REPLICATED})
 CreateConVar("pac_allow_blood_color", "1", {FCVAR_REPLICATED})
 CreateConVar("pac_sv_prop_outfits", "1", {FCVAR_REPLICATED})
@@ -192,7 +204,7 @@ function pace.AdminSettingsMenu(self)
 		self:CheckBox(L"Only specifically allowed users can do pac3 combat actions", "pac_sv_combat_whitelisting")
 	self:Help(""):SetFont("DermaDefaultBold")--spacers
 	self:Help(""):SetFont("DermaDefaultBold")
-		
+
 	self:Help(L"Combat parts (more detailed settings in the full editor settings menu)"):SetFont("DermaDefaultBold")
 		self:Help(L"Damage Zones"):SetFont("DermaDefaultBold")
 		self:CheckBox(L"Enable damage zones", "pac_sv_damage_zone")
@@ -201,7 +213,7 @@ function pace.AdminSettingsMenu(self)
 		self:NumSlider(L"Max length", "pac_sv_damage_zone_max_length", 0, 32767, 0)
 		self:CheckBox(L"Enable damage zone dissolve", "pac_sv_damage_zone_allow_dissolve")
 		self:CheckBox(L"Enable ragdoll hitparts", "pac_sv_damage_zone_allow_ragdoll_hitparts")
-		
+
 		self:Help(L"Hitscan"):SetFont("DermaDefaultBold")
 		self:CheckBox(L"Enable hitscan part", "pac_sv_hitscan")
 		self:NumSlider(L"Max damage", "pac_sv_hitscan_max_damage", 0, 268435455, 0)
@@ -212,13 +224,13 @@ function pace.AdminSettingsMenu(self)
 		self:CheckBox(L"Allow grab", "pac_sv_lock_grab")
 		self:CheckBox(L"Allow teleport", "pac_sv_lock_teleport")
 		self:CheckBox(L"Allow aiming", "pac_sv_lock_aim")
-		
+
 		self:Help(L"Force part"):SetFont("DermaDefaultBold")
 		self:CheckBox(L"Enable force part", "pac_sv_force")
 		self:NumSlider(L"Max amount", "pac_sv_force_max_amount", 0, 10000000, 0)
 		self:NumSlider(L"Max radius", "pac_sv_force_max_radius", 0, 32767, 0)
 		self:NumSlider(L"Max length", "pac_sv_force_max_length", 0, 32767, 0)
-		
+
 		self:Help(L"Health Modifier"):SetFont("DermaDefaultBold")
 		self:CheckBox(L"Enable health modifier", "pac_sv_health_modifier")
 		self:CheckBox(L"Allow changing max health or armor", "pac_sv_health_modifier_allow_maxhp")
@@ -239,7 +251,7 @@ function pace.AdminSettingsMenu(self)
 		self:CheckBox(L"Allow playermovement", "pac_free_movement")
 		self:CheckBox(L"Allow playermovement mass", "pac_player_movement_allow_mass")
 		self:CheckBox(L"Allow physics damage scaling by mass", "pac_player_movement_physics_damage_scaling")
-		
+
 end
 
 

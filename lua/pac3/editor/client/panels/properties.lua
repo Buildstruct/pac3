@@ -6,6 +6,7 @@ local extra_dynamic = CreateClientConVar("pac_special_property_update_dynamicall
 local special_property_text_color = CreateClientConVar("pac_special_property_text_color", "160 0 80", true, false, "R G B color of special property text\npac_special_property_text_color \"\" will make it not change the color\nSpecial contexts like proxies and hidden parts can show a different color to show that changes are happening in real time.")
 local prettify_names = CreateClientConVar("pac_property_reformating", "2", true, false, "How much to reformat the names of properties.\n2 will run the full editor friendly conversion.\n1 will partially run the editor friendly conversion on most cases except faceposer where an option exists to show the raw flex names\n0 will show the raw keys for everything")
 local faceposer_regroup = CreateClientConVar("pac_faceposer_property_regrouping", "1", true, false, "Whether to regroup flexes by category as brows, eyes, look, mouth and other flexes.\n0 = never\n1 = if the owner has a head bone\n2 = always")
+local preview_hovers = CreateClientConVar("pac_property_hovering_previews", "1", true, false, "Whether to preview the effect of most properties using the search list panel as well as materials via the asset browser and bookmarks")
 
 local pins = CreateClientConVar("pac_editor_pins", 0, true)
 cvars.AddChangeCallback("pac_editor_pins", function(cvar, old, new)
@@ -69,6 +70,21 @@ function pace.GoToPart(part)
 		pace.tree:ScrollToChild(part.pace_tree_node)
 	end end)
 end
+
+local function install_generic_preview_hover(option, key, preview_value)
+	if not key then return end
+	option.Think = function()
+		option.hovering = option:IsHovered()
+		if option.hovering then
+			pace.current_part:SetProperty(key, preview_value)
+			option.was_hovering = true
+		elseif option.was_hovering then
+			pace.current_part:SetProperty(key, pace.current_part.properties_not_edited_by_previews[key])
+			option.was_hovering = false
+		end
+	end
+end
+
 ---returns table
 --start_index is the first known index
 --continuous is whether it's continuous (some series have holes)
@@ -134,7 +150,7 @@ function pace.FindAssetSeriesBounds(base_directory, base_file, extension)
 end
 
 
-function pace.AddSubmenuWithBracketExpansion(pnl, func, base_file, extension, base_directory)
+function pace.AddSubmenuWithBracketExpansion(pnl, func, base_file, extension, base_directory, key)
 	if extension == "vmt" then base_directory = "materials" end --prescribed format: short
 	if extension == "mdl" then base_directory = "models" end --prescribed format: full
 	if extension == "wav" or extension == "mp3" or extension == "ogg" then base_directory = "sound" end  --prescribed format: no trunk
@@ -202,7 +218,8 @@ function pace.AddSubmenuWithBracketExpansion(pnl, func, base_file, extension, ba
 			path_no_trunk = string.gsub(path, base_directory .. "/", "")
 			if base_directory == "materials" then
 				local mat = string.gsub(path_no_trunk, "." .. string.GetExtensionFromFilename(path_no_trunk), "")
-				pnl2:AddOption(mat, function() func(mat) end):SetMaterial(pace.get_unlit_mat(path))
+				local option = pnl2:AddOption(mat, function() func(mat) end) option:SetMaterial(pace.get_unlit_mat(path))
+				if preview_hovers:GetBool() then install_generic_preview_hover(option, key, mat) end
 
 			elseif base_directory == "models" then
 				local mdl = path
@@ -399,14 +416,11 @@ local function populate_bookmarks(menu, mode, self)
 
 				for i,file in ipairs(files) do
 					local mat_no_ext = string.StripExtension(string.sub(file,11,#file)) --"materials/"
-					menu3:AddOption(mat_no_ext, function()
+					local option = menu3:AddOption(mat_no_ext, function()
 						self:SetValue(mat_no_ext)
-						if self.CurrentKey == "Material" then
-							pace.current_part:SetMaterial(mat_no_ext)
-						elseif self.CurrentKey == "SpritePath" then
-							pace.current_part:SetSpritePath(mat_no_ext)
-						end
-					end):SetMaterial(mat_no_ext)
+						pace.current_part:SetProperty(self.CurrentKey, mat_no_ext)
+					end) option:SetMaterial(mat_no_ext)
+					if preview_hovers:GetBool() then install_generic_preview_hover(option, self.CurrentKey, mat_no_ext) end
 				end
 			elseif string.find(mat, "%[%d+,%d+%]") then --find the bracket notation
 				mat_no_ext = string.gsub(mat_no_ext, "%[%d+,%d+%]", "")
@@ -414,22 +428,14 @@ local function populate_bookmarks(menu, mode, self)
 					str = str or ""
 					str = string.StripExtension(string.gsub(str, "^materials/", ""))
 					self:SetValue(str)
-					if self.CurrentKey == "Material" then
-						pace.current_part:SetMaterial(str)
-					elseif self.CurrentKey == "SpritePath" then
-						pace.current_part:SetSpritePath(str)
-					end
-				end, mat_no_ext, "vmt", "materials")
-
+					pace.current_part:SetProperty(self.CurrentKey, str)
+				end, mat_no_ext, "vmt", "materials", self.CurrentKey)
 			else
-				menu2:AddOption(string.StripExtension(mat), function()
+				local option = menu2:AddOption(string.StripExtension(mat), function()
 					self:SetValue(mat_no_ext)
-					if self.CurrentKey == "Material" then
-						pace.current_part:SetMaterial(mat_no_ext)
-					elseif self.CurrentKey == "SpritePath" then
-						pace.current_part:SetSpritePath(mat_no_ext)
-					end
-				end):SetMaterial(mat)
+					pace.current_part:SetProperty(self.CurrentKey, mat_no_ext)
+				end) option:SetMaterial(mat)
+				if preview_hovers:GetBool() then install_generic_preview_hover(option, self.CurrentKey, mat) end
 			end
 
 		end
@@ -458,25 +464,74 @@ local function populate_bookmarks(menu, mode, self)
 				local shader_submenu = menu2:AddSubMenu("pac3 materials - " .. shader)
 				for mat,tbl in pairs(mats) do
 					local part = tbl.part
-					local pnl2 = shader_submenu:AddOption(mat, function()
+					local option = shader_submenu:AddOption(mat, function()
 						self:SetValue(mat)
-						if self.CurrentKey == "Material" then
-							pace.current_part:SetMaterial(mat)
-						elseif self.CurrentKey == "SpritePath" then
-							pace.current_part:SetSpritePath(mat)
-						end
+						pace.current_part:SetProperty(self.CurrentKey, mat)
 					end)
-					pnl2:SetMaterial(pac.Material(mat, part))
-					pnl2:SetTooltip(tbl.shader)
+					option:SetMaterial(pac.Material(mat, part))
+					option:SetTooltip(tbl.shader)
+					if preview_hovers:GetBool() then install_generic_preview_hover(option, self.CurrentKey, mat) end
 				end
 			end
 		end
 
 		if self.CurrentKey == "Material" and pace.current_part.ClassName == "particles" then
-			pnl:SetTooltip("Appropriate shaders for particles are UnlitGeneric materials.\nOOtherwise, they should usually be additive or use VertexAlpha")
+			pnl:SetTooltip("Appropriate shaders for particles are UnlitGeneric materials.\nOtherwise, they should usually be additive or use VertexAlpha")
 		elseif self.CurrentKey == "SpritePath" then
-			pnl:SetTooltip("Appropriate shaders for sprites are UnlitGeneric materials.\nOOtherwise, they should usually be additive or use VertexAlpha")
+			pnl:SetTooltip("Appropriate shaders for sprites are UnlitGeneric materials.\nOtherwise, they should usually be additive or use VertexAlpha")
 		end
+
+		local part_material = pace.current_part:GetProperty(self.CurrentKey)
+		local mat_name = part_material:match(".+/(.+)") or ""
+
+		mat_name = mat_name .. "_" .. string.sub(pace.current_part.UniqueID,1,6)
+		mat_name = string.Replace(mat_name, " ", "")
+		local material_class = "material_2d"
+		-- models will use vertexlitgeneric
+		if pace.current_part.is_model_part or pace.current_part.is_entity_part then
+			material_class = "material_3d"
+		end
+
+		local function create_material(path, shader)
+			local newmaterial = pace.current_part:CreatePart(shader)
+			if self.CurrentKey == "SpritePath" then
+				newmaterial:SetParent(pace.current_part:GetParent())
+				newmaterial:SetDrawOrder(pace.current_part:GetDrawOrder() - 1)
+			end
+			newmaterial:SetName(mat_name)
+			newmaterial:SetProperty("LoadVmt", path)
+			pace.current_part:SetProperty(self.CurrentKey, mat_name)
+
+			return newmaterial
+		end
+
+		local menu2, pnl = menu:AddSubMenu("Edit Material (will be named " .. mat_name .. ")", function()
+			create_material(part_material, material_class)
+		end)
+		pnl:SetImage("icon16/paintcan.png")
+		pnl:SetTooltip(material_class)
+
+		--duplicate in case people don't know they can click the parent submenu
+		menu2:AddOption("simple load VMT (" .. material_class .. ")",  function()
+			create_material(part_material, material_class)
+		end):SetImage("icon16/paintcan.png")
+
+		local menu3, pnl2 = menu2:AddSubMenu("choose specific shader...")
+		pnl2:SetImage("icon16/chart_organisation.png")
+		menu3:AddOption("material_3d", function() create_material(part_material, "material_3d") end):SetImage("icon16/paintcan.png")
+		menu3:AddOption("material_2d", function() create_material(part_material, "material_2d") end):SetImage("icon16/paintcan.png")
+		menu3:AddOption("material_refract", function() create_material(part_material, "material_refract") end):SetImage("icon16/paintcan.png")
+		menu3:AddOption("material_eyerefract", function() create_material(part_material, "material_eyerefract") end):SetImage("icon16/paintcan.png")
+
+		menu2:AddOption("Make transparent (vertex alpha) (for transparent textures)", function()
+			local newmaterial = create_material(part_material, material_class)
+			newmaterial:Setvertexalpha(true)
+		end):SetImage("icon16/paintcan.png")
+
+		menu2:AddOption("Make transparent (additive) (for black backgrounds)", function()
+			local newmaterial = create_material(part_material, material_class)
+			newmaterial:Setadditive(true)
+		end):SetImage("icon16/paintcan.png")
 	elseif mode == "sound" then
 		pace.bookmarked_ressources = pace.bookmarked_ressources or {}
 		if not pace.bookmarked_ressources["sound"] then
@@ -685,6 +740,14 @@ function pace.CreateSearchList(property, key, name, add_columns, get_list, get_c
 
 	local first = NULL
 
+	local hoverpreview_excluded = {
+		["VariableName"] = true, --proxy will write irreversible changes early
+		["ToVariableName"] = true, --same as above
+		["FromVariableName"] = true, --same as above
+		["animation"] = true, --the one from custom animation frame event: ends up working wrong and reverting for some reason, there's a special onchange function that I think gets called twice
+		["Event"] = true, --doesn't integrate well with refreshing the dynamic properties, clears arguments early
+	}
+
 	local function build(find)
 		list:Clear()
 
@@ -710,6 +773,21 @@ function pace.CreateSearchList(property, key, name, add_columns, get_list, get_c
 					pnl:SetTooltip(pace.TUTORIALS["proxy_functions"][key] or "")
 				elseif name == "Event" then --insert event tutorials as tooltips
 					pnl:SetTooltip(pace.TUTORIALS["events"][key])
+				end
+
+				if preview_hovers:GetBool() and not hoverpreview_excluded[property.CurrentKey] then
+					pnl.Think = function()
+						if not IsValid(pace.current_part) then return end
+						if not property or not property.CurrentKey then return end
+						pnl.hovering = pnl:IsHovered()
+						if pnl.hovering then
+							pace.current_part:SetProperty(property.CurrentKey, val)
+							pnl.was_hovering = true
+						elseif pnl.was_hovering then
+							pace.current_part:SetProperty(property.CurrentKey, pace.current_part.properties_not_edited_by_previews[property.CurrentKey])
+							pnl.was_hovering = false
+						end
+					end
 				end
 
 				if not first:IsValid() then
@@ -1084,6 +1162,7 @@ do -- list
 	end
 
 	function PANEL:AddKeyValue(key, var, pos, obj, udata, group)
+		pace.current_part.properties_not_edited_by_previews[key] = pace.current_part:GetProperty(key)
 		line_height = self:GetItemHeight()
 		self.line_heights = self.line_heights or 0
 		self.line_heights = self.line_heights + line_height
@@ -1307,6 +1386,8 @@ do -- list
 		self:Clear()
 		self:InvalidateLayout()
 
+		pace.current_part.properties_not_edited_by_previews = {}
+
 		if self.pins_counterpart then self.pins_counterpart:Clear() end
 		local class = pace.current_part.ClassName
 		if not pace.property_internals[class] then
@@ -1437,6 +1518,7 @@ do -- list
 			end
 
 			pnl.CurrentKey = prop.key
+			pnl.udata = prop.udata
 
 			if pnl.ExtraPopulate then
 				table.insert(pace.extra_populates, {pnl = pnl, func = pnl.ExtraPopulate})
@@ -1472,7 +1554,7 @@ do -- list
 				populate(prop, true)
 			end
 		end
-		pace.properties.line_heights = 0
+		if IsValid(pace.properties) then pace.properties.line_heights = 0 end
 		if class == "faceposer" then
 			local grouping = false
 			if faceposer_regroup:GetInt() == 1 then
@@ -1953,6 +2035,11 @@ do -- base editable
 		return DefineMoreOptionsLeftClick(self, callFuncLeft, callFuncRight)
 	end
 
+	function PANEL:OnValueSet(val)
+		if self.CurrentKey == nil then return end
+		pace.current_part.properties_not_edited_by_previews[self.CurrentKey] = val
+	end
+
 	function PANEL:SetValue(var, skip_encode)
 		if self.editing then return end
 
@@ -2350,53 +2437,8 @@ do -- base editable
 			populate_bookmarks(menu, "models", self)
 		end
 
-		if self.CurrentKey == "Material" or self.CurrentKey == "SpritePath" then
+		if self.udata.editor_panel == "material" then
 			populate_bookmarks(menu, "materials", self)
-
-			local part_material = pace.current_part:GetProperty(self.CurrentKey)
-			local mat_name = part_material:match(".+/(.+)") or ""
-			mat_name = mat_name .. "_" .. string.sub(pace.current_part.UniqueID,1,6)
-			mat_name = string.Replace(mat_name, " ", "")
-			local menu2, pnl = menu:AddSubMenu("Edit Material (will be named " .. mat_name .. ")", function()
-				local newmaterial = pac.CreatePart("material_2d")
-				if self.CurrentKey == "SpritePath" then
-					newmaterial:SetParent(pace.current_part:GetParent())
-					newmaterial:SetDrawOrder(pace.current_part:GetDrawOrder() - 1)
-				else
-					newmaterial:SetParent(pace.current_part)
-				end
-				newmaterial:SetName(mat_name)
-				newmaterial:SetProperty("LoadVmt", part_material)
-				pace.current_part:SetProperty(self.CurrentKey, mat_name)
-			end)
-			pnl:SetImage("icon16/paintcan.png")
-
-			menu2:AddOption("Make transparent (vertex alpha) (for transparent textures)", function()
-				local newmaterial = pac.CreatePart("material_2d")
-				if self.CurrentKey == "SpritePath" then
-					newmaterial:SetParent(pace.current_part:GetParent())
-					newmaterial:SetDrawOrder(pace.current_part:GetDrawOrder() - 1)
-				else
-					newmaterial:SetParent(pace.current_part)
-				end
-				newmaterial:SetName(mat_name)
-				newmaterial:SetProperty("LoadVmt", part_material)
-				pace.current_part:SetProperty(self.CurrentKey, mat_name)
-				newmaterial:Setvertexalpha(true)
-			end):SetImage("icon16/paintcan.png")
-			menu2:AddOption("Make transparent (additive) (for black backgrounds)", function()
-				local newmaterial = pac.CreatePart("material_2d")
-				if self.CurrentKey == "SpritePath" then
-					newmaterial:SetParent(pace.current_part:GetParent())
-					newmaterial:SetDrawOrder(pace.current_part:GetDrawOrder() - 1)
-				else
-					newmaterial:SetParent(pace.current_part)
-				end
-				newmaterial:SetName(mat_name)
-				newmaterial:SetProperty("LoadVmt", part_material)
-				pace.current_part:SetProperty(self.CurrentKey, mat_name)
-				newmaterial:Setadditive(true)
-			end):SetImage("icon16/paintcan.png")
 		end
 
 		if string.find(pace.current_part.ClassName, "sound") then
@@ -2916,7 +2958,7 @@ do -- vector
 							end
 							
 							local color = Color(0,0,0)
-							if r + g + a < 400 then
+							if r + g + b < 400 then
 								color = Color(255,255,255)
 							end
 
