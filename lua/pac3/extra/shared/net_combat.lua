@@ -1675,11 +1675,12 @@ if SERVER then
 		end
 		for _,v in pairs(string.Explode(";",argStr)) do
 			if v ~= "" then
+				if not damageable_point_ent_classes[v] then
+					print("added " .. v .. " to the entities you can damage")
+				end
 				damageable_point_ent_classes[v] = true
-				print("added " .. v .. " to the entities you can damage")
 			end
 		end
-		PrintTable(damageable_point_ent_classes)
 	end)
 
 	concommand.Add("pac_damage_zone_blacklist_entity_class", function(ply, cmd, args, argStr)
