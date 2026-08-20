@@ -4201,12 +4201,6 @@ pac.AddHook("OnPlayerChat", "say_event", function(ply, str)
 	end
 end)
 
-pac.AddHook("BS_OnPlayerChat", "say_event", function(ply, str)
-	if ply:IsValid() then
-		ply.pac_say_event = {str = str, time = pac.RealTime}
-	end
-end)
-
 pac.AddHook("GravGunOnPickedUp", "gravgun_event", function(ply, ent)
 	if ply:IsValid() then
 		ply.pac_gravgun_ent = ent
