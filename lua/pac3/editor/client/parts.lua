@@ -286,6 +286,7 @@ function pace.OnCreatePart(class_name, name, mdl, no_parent)
 		end
 	end
 
+	if not part then return end
 	if name then part:SetName(name) end
 
 	if part.SetModel then
@@ -499,10 +500,12 @@ pace.suppress_flashing_property = false
 
 function pace.FlashProperty(obj, key, edit)
 	if pace.suppress_flashing_property then return end
+	if not obj then return end
+	if not key then return end
 	if not obj.flashing_property then
 		obj.flashing_property = true
 		timer.Simple(0.1, function()
-			if not obj.pace_properties[key] then return end
+			if not IsValid(obj.pace_properties[key]) then return end
 			obj.pace_properties[key]:Flash()
 			pace.current_flashed_property = key
 			if edit then
@@ -526,7 +529,8 @@ function pace.OnVariableChanged(obj, key, val, not_from_editor)
 	end
 
 	if not not_from_editor then
-		timer.Create("pace_backup", 1, 1, pace.Backup)
+		timer.Create("pace_backup", 3, 1, pace.Backup)
+		timer.Create("pace_backup_collectgarbage", 60, 1, function() collectgarbage("collect") end)
 
 		if not pace.undo_release_varchange then
 			pace.RecordUndoHistory()
@@ -824,6 +828,7 @@ do -- menu
 				table.sort(tbl, function(a, b) return a < b end)
 				for i, class in pairs(tbl) do
 					if isstring(i) and Parts[class] then
+						pace.TUTORIALS.PartInfos[class] = pace.TUTORIALS.PartInfos[class] or {}
 						local tooltip = pace.TUTORIALS.PartInfos[class].tooltip
 
 						if not tooltip or tooltip == "" then tooltip = "no information available" end
@@ -1508,7 +1513,7 @@ do -- menu
 			else
 				obj.pace_tree_node:SetAlpha( 255 )
 			end
-			
+
 		end
 		--RebuildBulkHighlight()
 	end
@@ -2069,7 +2074,7 @@ do -- menu
 								local x,y,z = unpack(string.Split(val, " "))
 								val = Color(x,y,z)
 							end
-							end_value:SetValue(val) 
+							end_value:SetValue(val)
 						end
 					elseif property_type == "number" then
 						function start_value.OnValueChanged(val)
@@ -2625,6 +2630,7 @@ local part_classes_with_quicksetups = {
 	hitscan = true,
 	jiggle = true,
 	interpolated_multibone = true,
+	material_3d = true,
 }
 local function AddOptionRightClickable(title, func, parent_menu)
 	local pnl = parent_menu:AddOption(title, func)
@@ -2655,7 +2661,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 	local main, pnlmain = menu:AddSubMenu("quick setups") pnlmain:SetIcon("icon16/basket_go.png")
 	--base_movables can restructure, but nah bones aint it
 	if obj.GetDrawPosition and obj.ClassName ~= "bone" and obj.ClassName ~= "bone2" and obj.ClassName ~= "bone3" then
-		if obj.Bone and obj.Bone == "camera" then
+		if obj.Bone and (obj.Bone == "camera" or obj.Bone == "player_eyes") then
 			main:AddOption("camera bone suggestion: limit view to yourself", function()
 				local event = pac.CreatePart("event") event:SetEvent("viewed_by_owner") event:SetParent(obj)
 			end):SetImage("icon16/star.png")
@@ -2705,10 +2711,35 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 			substitutes:AddOption("interpolator", function()
 				pace.SubstituteBaseMovable(obj, "create_parent", "interpolated_multibone")
 			end):SetIcon("icon16/table_multiple.png")
+
+		--mirroring
+		local tooltip = "Axis is relative to parent bone\nThe output stays within that same bone\n\nIf you wish to mirror on flipped bones, it can work. I recommend using the bone 'switch sides' action first, and then double-check your axis to make sure you know what's the new bone's actual base angle."
+		local mirror_submenu1, pnlsubmenu1 = main:AddSubMenu("Mirror parts...") pnlsubmenu1:SetImage("icon16/shape_flip_horizontal.png")  pnlsubmenu1:SetTooltip(tooltip)
+			mirror_submenu1:AddOption("x", function() pac.MirrorParts(pace.current_part, "x") end)
+			mirror_submenu1:AddOption("y", function() pac.MirrorParts(pace.current_part, "y") end)
+			mirror_submenu1:AddOption("z", function() pac.MirrorParts(pace.current_part, "z") end)
+		local mirror_submenu2, pnlsubmenu2 = main:AddSubMenu("Clone and Mirror parts...") pnlsubmenu2:SetImage("icon16/shape_flip_horizontal.png") pnlsubmenu2:SetTooltip(tooltip)
+			mirror_submenu2:AddOption("x", function() pac.MirrorParts(pace.current_part:Clone(), "x") end)
+			mirror_submenu2:AddOption("y", function() pac.MirrorParts(pace.current_part:Clone(), "y") end)
+			mirror_submenu2:AddOption("z", function() pac.MirrorParts(pace.current_part:Clone(), "z") end)
+		--override the gizmo to real coordinates used by mirror tool
+		pac.AddHook("HUDPaint", "mirror_tool_preview_bone_posang", function()
+			if not IsValid(menu) then
+				pace.mctrl.nodraw = false pac.RemoveHook("HUDPaint", "mirror_tool_preview_bone_posang") return
+			end
+			if pnlsubmenu1:IsHovered() or pnlsubmenu1:IsChildHovered() or pnlsubmenu2:IsHovered() or pnlsubmenu2:IsChildHovered() then
+				local pos, ang = pac.GetBonePosAng(pace.current_part:GetParentOwner(), pace.current_part.Bone)
+				pace.mctrl.ManualPaint(pos, ang, 2 * pace.mctrl.GetGizmoSize())
+			else
+				pace.mctrl.nodraw = false
+			end
+		end)
 	end
 
 	local function install_submaterial_options(menu)
-		local mats = obj:GetOwner():GetMaterials()
+		local owner = obj:GetOwner()
+		if not IsValid(owner) then return end
+		local mats = owner:GetMaterials()
 		local mats_str = table.concat(mats,"\n")
 		local dyn_props = obj:GetDynamicProperties()
 		local submat_togglers, pnl = main:AddSubMenu("create submaterial zone togglers (hide/show materials)", function()
@@ -2764,7 +2795,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 				mat:SetName(kw.."_"..string.sub(obj.UniqueID,1,6))
 				mat:SetLoadVmt(mat2)
 				submaterials[i] = kw.."_"..string.sub(obj.UniqueID,1,6)
-				
+
 			end
 			if #submaterials == 1 then
 				obj:SetMaterials("") obj:SetMaterial(submaterials[1])
@@ -2947,7 +2978,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 				local new_proxy = pac.CreatePart("proxy") new_proxy:SetParent(obj.Parent)
 				new_proxy:SetExpression("feedback() + 4*ftime()*((" .. obj.Expression .. ") - feedback())")
 				new_proxy:SetName(str)
-				new_proxy:SetExtra1(new_proxy.Expression)
+				new_proxy:SetExtra1("feedback()")
 			end)
 		end):SetIcon("icon16/calculator.png")
 	elseif obj.ClassName == "text" then
@@ -3050,20 +3081,23 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 		end):SetIcon("icon16/shield.png")
 
 	elseif obj.ClassName == "entity2" then
-		if obj:GetOwner().GetBodyGroups then
-			local bodygroups = obj:GetOwner():GetBodyGroups()
-			if #bodygroups > 0 then
-				local submenu, pnl = main:AddSubMenu("toggleable bodygroup with a dual proxy") pnl:SetImage("icon16/table_refresh.png")
-				pnl:SetTooltip("It will apply 1 and 0. But if there are more variations in that bodygroup, change the expression and the expression on hide if you wish")
-				for i,bodygroup in ipairs(bodygroups) do
-					if bodygroup.num == 1 then continue end
-					local pnl = submenu:AddOption(bodygroup.name, function()
-						local proxy = pac.CreatePart("proxy") proxy:SetParent(obj)
-						proxy:SetExpression("1") proxy:SetExpressionOnHide("0")
-						proxy:SetVariableName(bodygroup.name)
-						local event = pac.CreatePart("event") event:SetParent(proxy) event:SetEvent("command") event:SetArguments(string.Replace(bodygroup.name, " "))
-					end)
-					pnl:SetTooltip(table.ToString(bodygroup.submodels, nil, true))
+		local owner = obj:GetOwner()
+		if IsValid(owner) then
+			if owner.GetBodyGroups then
+				local bodygroups = owner:GetBodyGroups()
+				if #bodygroups > 0 then
+					local submenu, pnl = main:AddSubMenu("toggleable bodygroup with a dual proxy") pnl:SetImage("icon16/table_refresh.png")
+					pnl:SetTooltip("It will apply 1 and 0. But if there are more variations in that bodygroup, change the expression and the expression on hide if you wish")
+					for i,bodygroup in ipairs(bodygroups) do
+						if bodygroup.num == 1 then continue end
+						local pnl = submenu:AddOption(bodygroup.name, function()
+							local proxy = pac.CreatePart("proxy") proxy:SetParent(obj)
+							proxy:SetExpression("1") proxy:SetExpressionOnHide("0")
+							proxy:SetVariableName(bodygroup.name)
+							local event = pac.CreatePart("event") event:SetParent(proxy) event:SetEvent("command") event:SetArguments(string.Replace(bodygroup.name, " "))
+						end)
+						pnl:SetTooltip(table.ToString(bodygroup.submodels, nil, true))
+					end
 				end
 			end
 		end
@@ -3098,20 +3132,23 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 				end):SetImage("materials/spawnicons/"..string.gsub(wep_mdl, ".mdl", "")..".png")
 			end
 		end
-		if obj.Owner.GetBodyGroups then
-			local bodygroups = obj.Owner:GetBodyGroups()
-			if (#bodygroups > 1) or (#bodygroups[1].submodels > 1) then
-				local submenu, pnl = main:AddSubMenu("toggleable bodygroup with a dual proxy") pnl:SetImage("icon16/table_refresh.png")
-				pnl:SetTooltip("It will apply 1 and 0. But if there are more variations in that bodygroup, change the expression and the expression on hide if you wish")
-				for i,bodygroup in ipairs(bodygroups) do
-					if bodygroup.num == 1 then continue end
-					local pnl = submenu:AddOption(bodygroup.name, function()
-						local proxy = pac.CreatePart("proxy") proxy:SetParent(obj)
-						proxy:SetExpression("1") proxy:SetExpressionOnHide("0")
-						proxy:SetVariableName(bodygroup.name)
-						local event = pac.CreatePart("event") event:SetParent(proxy) event:SetEvent("command") event:SetArguments(string.Replace(bodygroup.name, " "))
-					end)
-					pnl:SetTooltip(table.ToString(bodygroup.submodels, nil, true))
+		local owner = obj:GetOwner()
+		if IsValid(owner) then
+			if owner.GetBodyGroups then
+				local bodygroups = owner:GetBodyGroups()
+				if (#bodygroups > 1) or (#bodygroups[1].submodels > 1) then
+					local submenu, pnl = main:AddSubMenu("toggleable bodygroup with a dual proxy") pnl:SetImage("icon16/table_refresh.png")
+					pnl:SetTooltip("It will apply 1 and 0. But if there are more variations in that bodygroup, change the expression and the expression on hide if you wish")
+					for i,bodygroup in ipairs(bodygroups) do
+						if bodygroup.num == 1 then continue end
+						local pnl = submenu:AddOption(bodygroup.name, function()
+							local proxy = pac.CreatePart("proxy") proxy:SetParent(obj)
+							proxy:SetExpression("1") proxy:SetExpressionOnHide("0")
+							proxy:SetVariableName(bodygroup.name)
+							local event = pac.CreatePart("event") event:SetParent(proxy) event:SetEvent("command") event:SetArguments(string.Replace(bodygroup.name, " "))
+						end)
+						pnl:SetTooltip(table.ToString(bodygroup.submodels, nil, true))
+					end
 				end
 			end
 		end
@@ -3255,7 +3292,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 			obj:SetFOV(math.Round(pace.ViewFOV,1))
 			pace.PopulateProperties(obj)
 		end, translate_from_view):SetImage("icon16/zoom.png")
-		
+
 		AddOptionRightClickable("reset FOV" , function()
 			obj:SetFOV(-1)
 			pace.PopulateProperties(obj)
@@ -3306,7 +3343,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 			AddOptionRightClickable(bonename, function()
 				bone_reposition(bonename)
 			end, full_bones_menu):SetImage("icon16/connect.png")
-		end 
+		end
 
 		local function extract_camera_from_jiggle()
 			camera = obj
@@ -3378,7 +3415,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 			if trace.Entity ~= ent then
 				height = height_headbase
 			end
- 
+
 			local info, pnl = main:AddSubMenu("calculated head height : " .. height .. " HU (" .. math.Round(height / 39,2) .." m)")
 			info:AddOption("alternate height calculations"):SetImage("icon16/help.png")
 			info:SetTooltip("Due to lack of standardization on models' scales, heights are not guaranteed to be accurate or consistent\n\nThe unit conversion used is 1 Hammer Unit : 2.5 cm (1 inch)")
@@ -3410,7 +3447,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 					obj:SetPosition(Vector(5,-4,0)) obj:SetEyeAnglesLerp(1) obj:SetAngles(Angle(0,-90,-90))
 					pace.PopulateProperties(obj)
 				end, fp):SetIcon("icon16/eye.png")
-	
+
 				AddOptionRightClickable("on neck + collapsed head", function()
 					extract_camera_from_jiggle()
 					obj:SetBone("neck")
@@ -3421,7 +3458,7 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 					local event = pac.CreatePart("event") event:SetEvent("viewed_by_owner") event:SetParent(bone)
 					pace.PopulateProperties(obj)
 				end, fp):SetIcon("icon16/eye.png")
-	
+
 				AddOptionRightClickable("on neck + collapsed head + eyeang limiter", function()
 					extract_camera_from_jiggle()
 					obj:SetBone("neck")
@@ -3441,31 +3478,31 @@ function pace.AddQuickSetupsToPartMenu(menu, obj)
 				extract_camera_from_jiggle()
 				pace.PopulateProperties(obj)
 			end, main):SetIcon("icon16/chart_line_delete.png")
-	
+
 			AddOptionRightClickable("close up (zoomed on the face)", function()
 				extract_camera_from_jiggle()
 				obj:SetBone("head") obj:SetAngles(Angle(0,90,90)) obj:SetPosition(Vector(3,-20,0)) obj:SetEyeAnglesLerp(0) obj:SetFOV(45)
 				pace.PopulateProperties(obj)
 			end, main):SetIcon("icon16/monkey.png")
-	
+
 			AddOptionRightClickable("Cowboy / medium shot (waist up) (relative to neck)", function()
 				extract_camera_from_jiggle()
 				obj:SetBone("neck") obj:SetAngles(Angle(0,120,90)) obj:SetPosition(Vector(14,-24,0)) obj:SetEyeAnglesLerp(0) obj:SetFOV(-1)
 				pace.PopulateProperties(obj)
 			end, main):SetIcon("icon16/user.png")
-	
+
 			AddOptionRightClickable("Cowboy / medium shot (waist up) (no bone) (20 + 0.6*height)", function()
 				extract_camera_from_jiggle()
 				obj:SetBone("invalidbone") obj:SetAngles(Angle(0,180,0)) obj:SetPosition(Vector(40,0,20 + 0.6*height)) obj:SetEyeAnglesLerp(0) obj:SetFOV(-1)
 				pace.PopulateProperties(obj)
 			end, main):SetIcon("icon16/user.png")
-	
+
 			AddOptionRightClickable("over the shoulder (no bone) (12 + 0.8*height)", function()
 				extract_camera_from_jiggle()
 				obj:SetBone("invalidbone") obj:SetAngles(Angle(0,0,0)) obj:SetPosition(Vector(-30,15,12 + 0.8*height)) obj:SetEyeAnglesLerp(0.3) obj:SetFOV(-1)
 				pace.PopulateProperties(obj)
 			end, main):SetIcon("icon16/user_gray.png")
-	
+
 			AddOptionRightClickable("over the shoulder (with jiggle)", function()
 				local jiggle = insert_camera_into_jiggle()
 				jiggle:SetConstrainSphere(75) jiggle:SetSpeed(3)
@@ -3887,6 +3924,20 @@ end)]])
 				pace.PopulateProperties(obj)
 			end):SetIcon("icon16/pencil_add.png")
 		end
+	elseif obj.ClassName == "material_3d" then
+		main:AddOption("Flesh Demo", function()
+			obj:Setfleshinteriorenabled(true)
+			obj:Setfleshdebugforcefleshon(true)
+			obj:Setfleshborderwidth(1.3)
+			obj:Setfleshbordernoisescale(1)
+			obj:Setfleshglobalopacity(1)
+			obj:Setfleshcubetexture("models/debug/debugwhite")
+			obj:Setfleshinteriortexture("models/props_lab/glass_tint001")
+			obj:Setfleshinteriornoisetexture("models/props_lab/xencrystal_normal")
+			obj:Setfleshnormaltexture("dev/water_normal")
+			obj:Setfleshsubsurfacetexture("metal2")
+			obj:Setfleshbordertexture1d("models/props_combine/stasisshield_tint")
+		end):SetIcon("icon16/paintcan.png")
 	end
 end
 
@@ -3989,7 +4040,7 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 				menu:AddOption("(" .. #pace.BulkSelectList .. " parts in Bulk select) Add to multiple target parts", function()
 					local anti_duplicate = {}
 					local uid_tbl = string.Split(obj.MultipleTargetParts,";")
-					
+
 					for i,uid in ipairs(uid_tbl) do
 						anti_duplicate[uid] = uid
 					end
@@ -4004,7 +4055,7 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 				end):SetIcon("icon16/star.png")
 			end
 		end
-		
+
 		local menu2, pnl = menu:AddSubMenu("Show graph", function()
 			pace.OpenProxyGrapher(obj)
 		end) pnl:SetImage("icon16/chart_line.png")
@@ -4170,7 +4221,7 @@ function pace.AddClassSpecificPartMenuComponents(menu, obj)
 				local parent = obj:GetParent()
 				local grandparent = obj:GetParent()
 				if parent.Parent then grandparent = parent:GetParent() end
-				
+
 				for i,part in ipairs(pace.BulkSelectList) do
 					part:SetAffectChildrenOnly(true)
 					part:SetDestinationPart()

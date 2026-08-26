@@ -72,13 +72,11 @@ net.Receive("pac_spawn_part", function()
 	end
 end)
 
-pace.SpawnlistBrowser = NULL
-
-if pace.SpawnlistBrowser_panels then
-	if pace.SpawnlistBrowser_panels[1]:IsValid() then pace.SpawnlistBrowser_panels[1]:Remove() end
-	if pace.SpawnlistBrowser_panels[2]:IsValid() then pace.SpawnlistBrowser_panels[2]:Remove() end
+--pac_restart-proofing
+if _G.pace_SpawnlistBrowser and _G.pace_SpawnlistBrowser:IsValid() then
+	pace.SpawnlistBrowser_panels = {_G.pace_SpawnlistBrowser:GetParent(), _G.pace_SpawnlistBrowser}
+	pace.SpawnlistBrowser_panels = pace.SpawnlistBrowser_panels or _G.pace_SpawnlistBrowser_panels
 end
-pace.SpawnlistBrowser_panels = {NULL, NULL}
 
 function pace.ClientOptionsMenu(self)
 	if not IsValid(self) then return end
@@ -92,9 +90,7 @@ function pace.ClientOptionsMenu(self)
 	local holder_panel = vgui.Create("DPanel")
 	self:AddPanel(holder_panel)
 	holder_panel:SetSize(400,480)
-	pace.SpawnlistBrowser_panels[1] = holder_panel
-	local browser = pace.CreatePanel("browser", holder_panel) --self:AddControl("pace_browser", {})
-	pace.SpawnlistBrowser_panels[2] = browser
+	local browser = vgui.Create("pace_browser", holder_panel) --self:AddControl("pace_browser", {})
 
 	browser.OnLoad = function(node)
 		pace.LoadParts(node.FileName, true)
@@ -110,11 +106,18 @@ function pace.ClientOptionsMenu(self)
 	browser:Dock(FILL)
 
 	pace.SpawnlistBrowser = browser
+	_G.pace_SpawnlistBrowser = browser
+	pace.SpawnlistBrowser_panels = {
+		holder_panel,
+		browser
+	}
+	_G.pace_SpawnlistBrowser_panels = pace.SpawnlistBrowser_panels
+
 
 	self:Button(L"request outfits", "pac_request_outfits")
 end
 
-CreateClientConVar("pac_limit_sounds_draw_distance", 20000, true, false, "Overall multiplier for PAC3 sounds")
+CreateClientConVar("pac_limit_sounds_draw_distance", 20000, true, false, "Distance limit for PAC3 sounds")
 cvars.AddChangeCallback("pac_limit_sounds_draw_distance", function(_,_,val)
 	if not isnumber(val) then val = 0 end
 	pac.sounds_draw_dist_sqr = val * val
@@ -184,6 +187,8 @@ function pace.AdminSettingsMenu(self)
 		self:CheckBox(L"Allow MDL zips for entity", "pac_allow_mdl_entity")
 		self:CheckBox(L"Allow entity model modifier", "pac_modifier_model")
 		self:CheckBox(L"Allow entity size modifier", "pac_modifier_size")
+		self:CheckBox(L"Allow entity step size modifier", "pac_modifier_stepsize")
+		self:CheckBox(L"Allow entity view offset modifier", "pac_modifier_viewoffset")
 		self:CheckBox(L"Allow blood color modifier", "pac_allow_blood_color")
 		self:NumSlider(L"Allow prop / other player outfits", "pac_sv_prop_outfits", 0, 2, 0)
 		self:CheckBox(L"Allow Nearest Life", "pac_sv_nearest_life")
