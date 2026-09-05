@@ -373,7 +373,8 @@ do -- projectile entity
 					data.HitEntity:TakeDamageInfo(info)
 				else
 					local can = hook.Run("CanProperty", ply, "remover", data.HitEntity)
-					if can ~= false then
+					local isWorldOwned = data.HitEntity.GetOwner and data.HitEntity:GetOwner() == game.GetWorld()
+					if can ~= false and not isWorldOwned then
 						dissolve(data.HitEntity, ply, damage_types[self.part_data.DamageType])
 					end
 				end
