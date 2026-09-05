@@ -192,6 +192,7 @@ do -- projectile entity
 
 		local dissolver_entity = NULL
 		local function dissolve(target, attacker, typ)
+			if IsValid(target) and target:CPPIGetOwner() == game.GetWorld() then return end 
 			local ent = dissolver_entity:IsValid() and dissolver_entity or ents.Create("env_entity_dissolver")
 			ent:Spawn()
 			target:SetName(tostring({}))
@@ -373,8 +374,7 @@ do -- projectile entity
 					data.HitEntity:TakeDamageInfo(info)
 				else
 					local can = hook.Run("CanProperty", ply, "remover", data.HitEntity)
-					local isWorldOwned = data.HitEntity.GetOwner and data.HitEntity:GetOwner() == game.GetWorld()
-					if can ~= false and not isWorldOwned then
+					if can ~= false then
 						dissolve(data.HitEntity, ply, damage_types[self.part_data.DamageType])
 					end
 				end

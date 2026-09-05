@@ -991,6 +991,7 @@ if SERVER then
 
 		local dissolver_entity = NULL
 		local function dissolve(target, attacker, typ)
+			if IsValid(target) and target:CPPIGetOwner() == game.GetWorld() then return end 
 			local dissolver_ent = ents.Create("env_entity_dissolver")
 			dissolver_ent:Spawn()
 			target:SetName(tostring({}))
@@ -1083,8 +1084,6 @@ if SERVER then
 
 		--final action to apply the DamageInfo
 		local function DoDamage(ent)
-			local isWorldOwned = ent.GetOwner and ent:GetOwner() == game.GetWorld()
-
 			--add the max hp-scaled damage calculated with this entity's max health
 			tbl.Damage = base_damage + tbl.MaxHpScaling * ent:GetMaxHealth()
 			dmg_info:SetDamage(tbl.Damage)
@@ -1191,7 +1190,7 @@ if SERVER then
 				if tbl.ReverseDoNotKill then
 					--don't damage if health is above critical
 					if ent:Health() < tbl.CriticalHealth then
-						if string.find(tbl.DamageType, "dissolve") and IsDissolvable(ent) and not isWorldOwned then
+						if string.find(tbl.DamageType, "dissolve") and IsDissolvable(ent) then
 							dissolve(ent, dmg_info:GetInflictor(), damage_types[tbl.DamageType])
 						end
 						dmg_info:SetDamagePosition(ent:NearestPoint(pos))
@@ -1220,7 +1219,7 @@ if SERVER then
 						max_dmg = math.max(max_dmg, dmg_info2:GetDamage())
 					--finally we reached the normal damage event!
 					else
-						if string.find(tbl.DamageType, "dissolve") and IsDissolvable(ent) and not isWorldOwned then
+						if string.find(tbl.DamageType, "dissolve") and IsDissolvable(ent) then
 							dissolve(ent, dmg_info:GetInflictor(), damage_types[tbl.DamageType])
 						end
 						dmg_info:SetDamagePosition(ent:NearestPoint(pos))
