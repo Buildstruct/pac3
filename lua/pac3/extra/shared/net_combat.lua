@@ -1675,9 +1675,6 @@ if SERVER then
 		end
 		for _,v in pairs(string.Explode(";",argStr)) do
 			if v ~= "" then
-				if not damageable_point_ent_classes[v] then
-					print("added " .. v .. " to the entities you can damage")
-				end
 				damageable_point_ent_classes[v] = true
 			end
 		end
@@ -1692,10 +1689,8 @@ if SERVER then
 		for _,v in pairs(string.Explode(";",argStr)) do
 			if v ~= "" then
 				damageable_point_ent_classes[v] = false
-				print("removed " .. v .. " from the entities you can damage")
 			end
 		end
-		PrintTable(damageable_point_ent_classes)
 	end)
 
 
